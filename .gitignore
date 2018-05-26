@@ -5,6 +5,7 @@
 .idea
 *.iml
 /gradle
+/app/build
 gradlew.bat
 local.properties
 gradle.properties

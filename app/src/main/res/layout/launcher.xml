@@ -32,6 +32,7 @@
 
         <!-- Keep these behind the workspace so that they are not visible when
              we go into AllApps -->
+
         <include
             android:id="@+id/dock_divider"
             layout="@layout/workspace_divider"
@@ -39,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="@dimen/button_bar_height_plus_padding"
             android:layout_gravity="bottom|center_horizontal" />
-
+        <!--当workspace滑动时出现的tab_indicator-->
         <include
             android:id="@+id/paged_view_indicator"
             layout="@layout/scroll_indicator"
@@ -70,7 +71,7 @@
             <include android:id="@+id/cell4" layout="@layout/workspace_screen" />
             <include android:id="@+id/cell5" layout="@layout/workspace_screen" />
         </com.android.launcher2.Workspace>
-
+        <!--热区，一般位于底部-->
         <include layout="@layout/hotseat"
             android:id="@+id/hotseat"
             android:layout_width="match_parent"
