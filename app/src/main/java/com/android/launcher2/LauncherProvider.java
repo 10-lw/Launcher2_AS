@@ -16,6 +16,7 @@
 
 package com.android.launcher2;
 
+import android.annotation.SuppressLint;
 import android.app.SearchManager;
 import android.appwidget.AppWidgetHost;
 import android.appwidget.AppWidgetManager;
@@ -62,6 +63,11 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ContentProvider内容提供者
+ *
+ */
+@SuppressLint("LongLogTag")
 public class LauncherProvider extends ContentProvider {
     private static final String TAG = "Launcher.LauncherProvider";
     private static final boolean LOGD = false;
@@ -208,10 +214,11 @@ public class LauncherProvider extends ContentProvider {
     }
 
     /**
-     * @param workspaceResId that can be 0 to use default or non-zero for specific resource
+     * @param origWorkspaceResId that can be 0 to use default or non-zero for specific resource
      */
+    @SuppressLint("LongLogTag")
     synchronized public void loadDefaultFavoritesIfNecessary(int origWorkspaceResId,
-            boolean overridePrevious) {
+                                                             boolean overridePrevious) {
         String spKey = LauncherApplication.getSharedPreferencesKey();
         SharedPreferences sp = getContext().getSharedPreferences(spKey, Context.MODE_PRIVATE);
         boolean dbCreatedNoWorkspace =
@@ -251,6 +258,9 @@ public class LauncherProvider extends ContentProvider {
         mOpenHelper = new DatabaseHelper(getContext());
     }
 
+    /**
+     * 数据库
+     */
     private static class DatabaseHelper extends SQLiteOpenHelper {
         private static final String TAG_FAVORITES = "favorites";
         private static final String TAG_FAVORITE = "favorite";
@@ -340,6 +350,7 @@ public class LauncherProvider extends ContentProvider {
             editor.putBoolean(DB_CREATED_BUT_DEFAULT_WORKSPACE_NOT_LOADED, true);
             editor.commit();
         }
+
 
         private boolean convertDatabase(SQLiteDatabase db) {
             if (LOGD) Log.d(TAG, "converting database from an older format, but not onUpgrade");
@@ -843,7 +854,7 @@ public class LauncherProvider extends ContentProvider {
          * Loads the default set of favorite packages from an xml file.
          *
          * @param db The database to write the values into
-         * @param filterContainerId The specific container id of items to load
+         * @param workspaceResourceId The specific container id of items to load
          */
         private int loadFavorites(SQLiteDatabase db, int workspaceResourceId) {
             Intent intent = new Intent(Intent.ACTION_MAIN, null);

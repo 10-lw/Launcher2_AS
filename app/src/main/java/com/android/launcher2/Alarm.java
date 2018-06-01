@@ -18,6 +18,10 @@ package com.android.launcher2;
 
 import android.os.Handler;
 
+/**
+ * 定时器，通过setAlarm方法设置时长，时间到之后可回调到
+ * 监听者OnAlarmListener.onAlarm中，定时功能通过Handler.postDelayed保证
+ */
 public class Alarm implements Runnable{
     // if we reach this time and the alarm hasn't been cancelled, call the listener
     private long mAlarmTriggerTime;
@@ -28,6 +32,9 @@ public class Alarm implements Runnable{
 
     private Handler mHandler;
     private OnAlarmListener mAlarmListener;
+    /**
+     * 通过此变量可以判断当前alarm是否被执行
+     */
     private boolean mAlarmPending = false;
 
     public Alarm() {
@@ -74,6 +81,10 @@ public class Alarm implements Runnable{
         }
     }
 
+    /**
+     * 判断alarm是否已被执行
+     * @return true，表示当前alarm还没有被执行，false表示已被执行
+     */
     public boolean alarmPending() {
         return mAlarmPending;
     }

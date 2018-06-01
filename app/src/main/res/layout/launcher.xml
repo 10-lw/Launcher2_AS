@@ -77,20 +77,20 @@
             android:layout_width="match_parent"
             android:layout_height="@dimen/button_bar_height_plus_padding"
             android:layout_gravity="bottom" />
-
+        <!--顶部searchbar-->
         <include
             android:id="@+id/qsb_bar"
             layout="@layout/qsb_bar" />
 
         <!-- The Workspace cling must appear under the AppsCustomizePagedView below to ensure
              that it is still visible during the transition to AllApps and doesn't overlay on
-             top of that view. -->
+             top of that view. 此控件是当首次打开应用时出现的控件-->
         <include layout="@layout/workspace_cling"
             android:id="@+id/workspace_cling"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone" />
-
+            <!--此控件是第一次打开folder时出现-->
         <include layout="@layout/folder_cling"
             android:id="@+id/folder_cling"
             android:layout_width="match_parent"

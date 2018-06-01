@@ -384,6 +384,7 @@ public final class Launcher extends Activity
         checkForLocaleChange();
         setContentView(R.layout.launcher);
         setupViews();
+        //判断是否首次打开应用，如果是那么就弹出cling提示layout
         showFirstRunWorkspaceCling();
 		//appWidget监听
         registerContentObservers();
@@ -433,6 +434,9 @@ public final class Launcher extends Activity
         unlockScreenOrientation(true);
     }
 
+    /**
+     * 此方法当用户点击home键或者menu键离开launcher应用时调用
+     */
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
         sPausedFromUserAction = true;
@@ -993,12 +997,13 @@ public final class Launcher extends Activity
      */
     private void setupViews() {
         final DragController dragController = mDragController;
-
+        //最外层FrameLayout
         mLauncherView = findViewById(R.id.launcher);
         mDragLayer = (DragLayer) findViewById(R.id.drag_layer);
         mWorkspace = (Workspace) mDragLayer.findViewById(R.id.workspace);
         mQsbDivider = findViewById(R.id.qsb_divider);
         mDockDivider = findViewById(R.id.dock_divider);
+        //设置launcher全屏显示
 
         mLauncherView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         mWorkspaceBackgroundDrawable = getResources().getDrawable(R.drawable.workspace_bg);
@@ -1006,9 +1011,10 @@ public final class Launcher extends Activity
         // Setup the drag layer
         mDragLayer.setup(this, dragController);
 
-        // Setup the hotseat
+        // 初始化底部热区控件
         mHotseat = (Hotseat) findViewById(R.id.hotseat);
         if (mHotseat != null) {
+            //传递launcher引用
             mHotseat.setup(this);
         }
 
@@ -1613,6 +1619,7 @@ public final class Launcher extends Activity
 
         mDragLayer.clearAllResizeFrames();
         ((ViewGroup) mWorkspace.getParent()).removeAllViews();
+        //workspace所有子节点全部清除
         mWorkspace.removeAllViews();
         mWorkspace = null;
         mDragController = null;

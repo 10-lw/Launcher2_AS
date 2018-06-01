@@ -116,7 +116,6 @@ public class InterruptibleInOutAnimator {
     public void animateOut() {
         animate(OUT);
     }
-
     public void setTag(Object tag) {
         mTag = tag;
     }

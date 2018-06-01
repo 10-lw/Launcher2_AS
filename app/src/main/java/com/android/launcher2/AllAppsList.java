@@ -27,6 +27,8 @@ import android.os.UserHandle;
 
 /**
  * Stores the list of all applications for the all apps view.
+ * 在launcher底部中间的all apps按钮点击后展现的app list
+ *
  */
 class AllAppsList {
     public static final int DEFAULT_APPLICATIONS_NUMBER = 42;

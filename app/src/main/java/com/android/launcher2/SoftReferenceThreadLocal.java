@@ -2,6 +2,10 @@ package com.android.launcher2;
 
 import java.lang.ref.SoftReference;
 
+/**
+ * 引用池
+ * @param <T>
+ */
 abstract class SoftReferenceThreadLocal<T> {
     private ThreadLocal<SoftReference<T>> mThreadLocal;
     public SoftReferenceThreadLocal() {

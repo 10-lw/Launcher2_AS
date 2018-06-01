@@ -76,7 +76,9 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
         @SuppressWarnings("all") // suppress dead code warning
         final boolean debug = false;
         if (debug) {
-            // Debug drawing for hit space
+            /**
+             * 在debug状态下画出每个child的范围
+             */
             Paint p = new Paint();
             p.setColor(0x6600FF00);
             for (int i = getChildCount() - 1; i >= 0; i--) {
@@ -143,7 +145,7 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
                 int childTop = lp.y;
                 child.layout(childLeft, childTop, childLeft + lp.width, childTop + lp.height);
 
-                if (lp.dropped) {
+                if (lp.dropped) {//
                     lp.dropped = false;
 
                     final int[] cellXY = mTmpCellXY;
@@ -168,6 +170,7 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
         if (child != null) {
             Rect r = new Rect();
             child.getDrawingRect(r);
+            //当组里的某个子视图需要被定位在屏幕的某个矩形范围时，调用此方法。
             requestRectangleOnScreen(r);
         }
     }

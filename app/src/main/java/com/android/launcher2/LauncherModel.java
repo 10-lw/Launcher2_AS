@@ -92,7 +92,9 @@ public class LauncherModel extends BroadcastReceiver {
     private static final int MAIN_THREAD_NORMAL_RUNNABLE = 0;
     private static final int MAIN_THREAD_BINDING_RUNNABLE = 1;
 
-
+    /**
+     * Handler在非主线程使用时除了使用Loop.getMainLooper()轮询之外，还可以使用HandlerThread在非主线程实现轮询
+     */
     private static final HandlerThread sWorkerThread = new HandlerThread("launcher-loader");
     static {
         sWorkerThread.start();
@@ -224,6 +226,9 @@ public class LauncherModel extends BroadcastReceiver {
         return Bitmap.createBitmap(mDefaultIcon);
     }
 
+    /**
+     * 在Launcher销毁时调用
+     */
     public void unbindItemInfosAndClearQueuedBindRunnables() {
         if (sWorkerThread.getThreadId() == Process.myTid()) {
             throw new RuntimeException("Expected unbindLauncherItemInfos() to be called from the " +
@@ -333,6 +338,13 @@ public class LauncherModel extends BroadcastReceiver {
         runOnWorkerThread(r);
     }
 
+    /**
+     * 把itemInfo更新到db中，并且重新判断itemType来选择当前itemInfo该存放的List
+     * @param context
+     * @param values
+     * @param item
+     * @param callingFunction
+     */
     static void updateItemInDatabaseHelper(Context context, final ContentValues values,
             final ItemInfo item, final String callingFunction) {
         final long itemId = item.id;
@@ -494,6 +506,7 @@ public class LauncherModel extends BroadcastReceiver {
     }
 
     /**
+     * 判断数据库中是否存在title和intent为参数的itemInfo
      * Returns true if the shortcuts already exists in the database.
      * we identify a shortcut by its title and intent.
      */
@@ -580,6 +593,7 @@ public class LauncherModel extends BroadcastReceiver {
                 final int cellYIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites.CELLY);
 
                 FolderInfo folderInfo = null;
+                //此处判断感觉没必要
                 switch (c.getInt(itemTypeIndex)) {
                     case LauncherSettings.Favorites.ITEM_TYPE_FOLDER:
                         folderInfo = findOrMakeFolder(folderList, id);
@@ -603,6 +617,8 @@ public class LauncherModel extends BroadcastReceiver {
     }
 
     /**
+     *
+     * 加到数据库同时同步到集合中
      * Add an item to the database in a specified container. Sets the container, screen, cellX and
      * cellY fields of the item. Also assigns an ID to the item.
      */
@@ -644,16 +660,16 @@ public class LauncherModel extends BroadcastReceiver {
                 // Lock on mBgLock *after* the db operation
                 synchronized (sBgLock) {
                     checkItemInfoLocked(item.id, item, stackTrace);
-                    sBgItemsIdMap.put(item.id, item);
+                    sBgItemsIdMap.put(item.id, item);//sBgItemsIdMap存放所有的info appwidget，folder，shortcut...
                     switch (item.itemType) {
                         case LauncherSettings.Favorites.ITEM_TYPE_FOLDER:
-                            sBgFolders.put(item.id, (FolderInfo) item);
+                            sBgFolders.put(item.id, (FolderInfo) item);//sBgFolders存放所有FolderInfo
                             // Fall through
                         case LauncherSettings.Favorites.ITEM_TYPE_APPLICATION:
                         case LauncherSettings.Favorites.ITEM_TYPE_SHORTCUT:
                             if (item.container == LauncherSettings.Favorites.CONTAINER_DESKTOP ||
                                     item.container == LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
-                                sBgWorkspaceItems.add(item);
+                                sBgWorkspaceItems.add(item);//存放所有ShortCutInfo
                             } else {
                                 if (!sBgFolders.containsKey(item.container)) {
                                     // Adding an item to a folder that doesn't exist.
@@ -665,7 +681,7 @@ public class LauncherModel extends BroadcastReceiver {
                             }
                             break;
                         case LauncherSettings.Favorites.ITEM_TYPE_APPWIDGET:
-                            sBgAppWidgets.add((LauncherAppWidgetInfo) item);
+                            sBgAppWidgets.add((LauncherAppWidgetInfo) item);//存放所有AppWidgetInfo
                             break;
                     }
                 }
@@ -701,7 +717,7 @@ public class LauncherModel extends BroadcastReceiver {
     }
 
     /**
-     * Removes the specified item from the database
+     * Removes the specified item from the database 和list
      * @param context
      * @param item
      */
@@ -877,6 +893,9 @@ public class LauncherModel extends BroadcastReceiver {
         }
     }
 
+    /**
+     * 状态重置，后台加载
+     */
     void forceReload() {
         resetLoadedState(true, true);
 
@@ -948,6 +967,7 @@ public class LauncherModel extends BroadcastReceiver {
                 // also, don't downgrade isLaunching if we're already running
                 isLaunching = isLaunching || stopLoaderLocked();
                 mLoaderTask = new LoaderTask(mApp, isLaunching);
+                //如果当前已经完成load操作，那么就进行bi同步bind
                 if (synchronousBindPage > -1 && mAllAppsLoaded && mWorkspaceLoaded) {
                     mLoaderTask.runBindSynchronousPage(synchronousBindPage);
                 } else {
@@ -1001,7 +1021,7 @@ public class LauncherModel extends BroadcastReceiver {
         private boolean mIsLoadingAndBindingWorkspace;
         private boolean mStopped;
         private boolean mLoadAndBindStepFinished;
-
+        //用于存放对应组件的应用名label
         private HashMap<Object, CharSequence> mLabelCache;
 
         LoaderTask(Context context, boolean isLaunching) {
@@ -1284,7 +1304,7 @@ public class LauncherModel extends BroadcastReceiver {
                 sBgDbIconCache.clear();
 
                 final ArrayList<Long> itemsToRemove = new ArrayList<Long>();
-
+                /*查询本地数据库信息*/
                 final Cursor c = contentResolver.query(
                         LauncherSettings.Favorites.CONTENT_URI, null, null, null, null);
 
@@ -1295,6 +1315,7 @@ public class LauncherModel extends BroadcastReceiver {
                         new ItemInfo[Launcher.SCREEN_COUNT + 1][mCellCountX + 1][mCellCountY + 1];
 
                 try {
+                    //以下是得知相应的字段在哪一列中
                     final int idIndex = c.getColumnIndexOrThrow(LauncherSettings.Favorites._ID);
                     final int intentIndex = c.getColumnIndexOrThrow
                             (LauncherSettings.Favorites.INTENT);
@@ -1339,6 +1360,7 @@ public class LauncherModel extends BroadcastReceiver {
 
                     while (!mStopped && c.moveToNext()) {
                         try {
+                            //先判断当前行的type类型
                             int itemType = c.getInt(itemTypeIndex);
 
                             switch (itemType) {
@@ -2217,7 +2239,7 @@ public class LauncherModel extends BroadcastReceiver {
         if (lai == null) {
             return null;
         }
-
+        //先从缓存中获取icon,如果缓存里边没有，就从数据库获取，如果数据库也为空，那就使用默认icon
         icon = mIconCache.getIcon(componentName, lai, labelCache);
         // the db
         if (icon == null) {
@@ -2228,11 +2250,12 @@ public class LauncherModel extends BroadcastReceiver {
         // the fallback icon
         if (icon == null) {
             icon = getFallbackIcon();
+            //flag
             info.usingFallbackIcon = true;
         }
         info.setIcon(icon);
 
-        // from the resource
+        // from the resource，应用名获取，并缓存在labelCache中
         ComponentName key = lai.getComponentName();
         if (labelCache != null && labelCache.containsKey(key)) {
             info.title = labelCache.get(key);
@@ -2277,6 +2300,7 @@ public class LauncherModel extends BroadcastReceiver {
     }
 
     /**
+     * title，itemType，contentDescription，icon信息获取
      * Make an ShortcutInfo object for a shortcut that isn't an application.
      */
     private ShortcutInfo getShortcutInfo(Cursor c, Context context,

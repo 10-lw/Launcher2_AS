@@ -58,6 +58,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Stack;
 
+/**
+ * 在workspace中每个单独的page就是cellLayout
+ */
 public class CellLayout extends ViewGroup {
     static final String TAG = "CellLayout";
 
@@ -180,12 +183,11 @@ public class CellLayout extends ViewGroup {
 
         // A ViewGroup usually does not draw, but CellLayout needs to draw a rectangle to show
         // the user where a dragged item will land when dropped.
-        setWillNotDraw(false);
-        setClipToPadding(false);
+        setWillNotDraw(false);//边界画面
+        setClipToPadding(false);//边界裁剪
         mLauncher = (Launcher) context;
 
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.CellLayout, defStyle, 0);
-
         mCellWidth = a.getDimensionPixelSize(R.styleable.CellLayout_cellWidth, 10);
         mCellHeight = a.getDimensionPixelSize(R.styleable.CellLayout_cellHeight, 10);
         mWidthGap = mOriginalWidthGap = a.getDimensionPixelSize(R.styleable.CellLayout_widthGap, 0);
@@ -193,7 +195,7 @@ public class CellLayout extends ViewGroup {
         mMaxGap = a.getDimensionPixelSize(R.styleable.CellLayout_maxGap, 0);
         mCountX = LauncherModel.getCellCountX();
         mCountY = LauncherModel.getCellCountY();
-        mOccupied = new boolean[mCountX][mCountY];
+        mOccupied = new boolean[mCountX][mCountY];//表示cell是否被占用
         mTmpOccupied = new boolean[mCountX][mCountY];
         mPreviousReorderDirection[0] = INVALID_DIRECTION;
         mPreviousReorderDirection[1] = INVALID_DIRECTION;
@@ -312,10 +314,12 @@ public class CellLayout extends ViewGroup {
     }
 
     public void enableHardwareLayers() {
+        //开启硬件加速
         mShortcutsAndWidgets.setLayerType(LAYER_TYPE_HARDWARE, sPaint);
     }
 
     public void disableHardwareLayers() {
+        //关闭硬件加速
         mShortcutsAndWidgets.setLayerType(LAYER_TYPE_NONE, sPaint);
     }
 
@@ -344,11 +348,11 @@ public class CellLayout extends ViewGroup {
     }
 
     private void invalidateBubbleTextView(BubbleTextView icon) {
-        final int padding = icon.getPressedOrFocusedBackgroundPadding();
+        final int padding = icon.getPressedOrFocusedBackgroundPadding();//0
         invalidate(icon.getLeft() + getPaddingLeft() - padding,
                 icon.getTop() + getPaddingTop() - padding,
                 icon.getRight() + getPaddingLeft() + padding,
-                icon.getBottom() + getPaddingTop() + padding);
+                icon.getBottom() + getPaddingTop() + padding);//重绘区域
     }
 
     void setOverScrollAmount(float r, boolean left) {
@@ -406,7 +410,7 @@ public class CellLayout extends ViewGroup {
 
     public void scaleRect(Rect r, float scale) {
         if (scale != 1.0f) {
-            r.left = (int) (r.left * scale + 0.5f);
+            r.left = (int) (r.left * scale + 0.5f);//保证向上取整
             r.top = (int) (r.top * scale + 0.5f);
             r.right = (int) (r.right * scale + 0.5f);
             r.bottom = (int) (r.bottom * scale + 0.5f);
@@ -546,7 +550,7 @@ public class CellLayout extends ViewGroup {
         if (mForegroundAlpha > 0) {
             mOverScrollForegroundDrawable.setBounds(mForegroundRect);
             Paint p = ((NinePatchDrawable) mOverScrollForegroundDrawable).getPaint();
-            p.setXfermode(sAddBlendMode);
+            p.setXfermode(sAddBlendMode);//饱和度添加
             mOverScrollForegroundDrawable.draw(canvas);
             p.setXfermode(null);
         }
@@ -624,6 +628,7 @@ public class CellLayout extends ViewGroup {
             if (mIsHotseat) {
                 bubbleChild.setTextColor(res.getColor(android.R.color.transparent));
             } else {
+                //白色
                 bubbleChild.setTextColor(res.getColor(R.color.workspace_icon_text_color));
             }
         }
@@ -1505,9 +1510,9 @@ public class CellLayout extends ViewGroup {
      * @param spanX Horizontal span of the object.
      * @param spanY Vertical span of the object.
      * @param direction The favored direction in which the views should move from x, y
-     * @param exactDirectionOnly If this parameter is true, then only solutions where the direction
+     * @param direction If this parameter is true, then only solutions where the direction
      *        matches exactly. Otherwise we find the best matching direction.
-     * @param occoupied The array which represents which cells in the CellLayout are occupied
+     * @param occupied The array which represents which cells in the CellLayout are occupied
      * @param blockOccupied The array which represents which cells in the specified block (cellX,
      *        cellY, spanX, spanY) are occupied. This is used when try to move a group of views. 
      * @param result Array in which to place the result, or null (in which case a new array will
@@ -2778,8 +2783,7 @@ public class CellLayout extends ViewGroup {
      * @param pixelX The X location at which you want to search for a vacant area.
      * @param pixelY The Y location at which you want to search for a vacant area.
      * @param spanX Horizontal span of the object.
-     * @param spanY Vertical span of the object.
-     * @param ignoreView Considers space occupied by this view as unoccupied
+     * @param spanY Vertical span of the object,Considers space occupied by this view as unoccupied
      * @param result Previously returned value to possibly recycle.
      * @return The X, Y cell of a vacant area that can contain this object,
      *         nearest the requested location.
@@ -2830,8 +2834,7 @@ public class CellLayout extends ViewGroup {
      * return coordinates for rectangles that contain the cell [intersectX, intersectY]
      *
      * @param spanX The horizontal span of the cell we want to find.
-     * @param spanY The vertical span of the cell we want to find.
-     * @param ignoreView The home screen item we should treat as not occupying any space
+     * @param spanY The vertical span of the cell we want to find.The home screen item we should treat as not occupying any space
      * @param intersectX The X coordinate of the cell that we should try to overlap
      * @param intersectX The Y coordinate of the cell that we should try to overlap
      *

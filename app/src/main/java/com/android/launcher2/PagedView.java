@@ -222,7 +222,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         mScrollIndicatorPaddingRight =
             a.getDimensionPixelSize(R.styleable.PagedView_scrollIndicatorPaddingRight, 0);
         a.recycle();
-
+        //是否启用触摸震动反馈
         setHapticFeedbackEnabled(false);
         init();
     }

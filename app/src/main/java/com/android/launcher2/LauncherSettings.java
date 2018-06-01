@@ -21,6 +21,7 @@ import android.provider.BaseColumns;
 
 /**
  * Settings related utilities.
+ * 提供一些Uri去操作Provider，以及数据库中对应字段的字段名称的
  */
 class LauncherSettings {
     static interface BaseLauncherColumns extends BaseColumns {
