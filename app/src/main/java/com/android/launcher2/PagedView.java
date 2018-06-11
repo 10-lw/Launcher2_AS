@@ -240,13 +240,13 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         final ViewConfiguration configuration = ViewConfiguration.get(getContext());
         mTouchSlop = configuration.getScaledTouchSlop();
         mPagingTouchSlop = configuration.getScaledPagingTouchSlop();
-        mMaximumVelocity = configuration.getScaledMaximumFlingVelocity();
+        mMaximumVelocity = configuration.getScaledMaximumFlingVelocity();//fling最大速度
         mDensity = getResources().getDisplayMetrics().density;
 
         mFlingThresholdVelocity = (int) (FLING_THRESHOLD_VELOCITY * mDensity);
         mMinFlingVelocity = (int) (MIN_FLING_VELOCITY * mDensity);
         mMinSnapVelocity = (int) (MIN_SNAP_VELOCITY * mDensity);
-        setOnHierarchyChangeListener(this);
+        setOnHierarchyChangeListener(this);//当有view添加或者有view被移除时调用
     }
 
     public void setPageSwitchListener(PageSwitchListener pageSwitchListener) {
@@ -257,6 +257,8 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
     }
 
     /**
+     * 此判断是为了适应某些国家阅读方式为从右到左的习惯
+     * 当返回true时，系统把界面右上视为远点，布局由右到左，由上到下
      * Note: this is a reimplementation of View.isLayoutRtl() since that is currently hidden api.
      */
     public boolean isLayoutRtl() {
@@ -286,6 +288,10 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         return (mNextPage != INVALID_PAGE) ? mNextPage : mCurrentPage;
     }
 
+    /**
+     * page数量即为child数量
+     * @return
+     */
     int getPageCount() {
         return getChildCount();
     }
@@ -347,11 +353,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
             return;
         }
 
-
+        //边界检查
         mCurrentPage = Math.max(0, Math.min(currentPage, getPageCount() - 1));
-        updateCurrentPageScroll();
-        updateScrollingIndicator();
-        notifyPageSwitchListener();
+        updateCurrentPageScroll();//无scroll过程，直接切换page
+        updateScrollingIndicator();//
+        notifyPageSwitchListener();//页面切换回调
         invalidate();
     }
 
@@ -413,6 +419,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
 
         boolean isXBeforeFirstPage = isRtl ? (x > mMaxScrollX) : (x < 0);
         boolean isXAfterLastPage = isRtl ? (x < 0) : (x > mMaxScrollX);
+        //x边界检查
         if (isXBeforeFirstPage) {
             super.scrollTo(0, y);
             if (mAllowOverScroll) {
@@ -442,7 +449,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
 
     // we moved this functionality to a helper function so SmoothPagedView can reuse it
     protected boolean computeScrollHelper() {
-        if (mScroller.computeScrollOffset()) {
+        if (mScroller.computeScrollOffset()) {//当前还在移动
             // Don't bother scrolling if the page does not need to be moved
             if (getScrollX() != mScroller.getCurrX()
                 || getScrollY() != mScroller.getCurrY()
@@ -451,10 +458,10 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
             }
             invalidate();
             return true;
-        } else if (mNextPage != INVALID_PAGE) {
+        } else if (mNextPage != INVALID_PAGE) {//滑动完成
             mCurrentPage = Math.max(0, Math.min(mNextPage, getPageCount() - 1));
-            mNextPage = INVALID_PAGE;
-            notifyPageSwitchListener();
+            mNextPage = INVALID_PAGE;//TODO 此处为何mNextPage会置为INVAILD_PAGE？
+            notifyPageSwitchListener();//页面切换监听
 
             // Load the associated pages if necessary
             if (mDeferLoadAssociatedPagesUntilScrollCompletes) {
@@ -487,6 +494,21 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         computeScrollHelper();
     }
 
+    /**
+     * 宽度width只能是EXACTLY精确的
+     * 高度height允许是WRAP_CONTENT包裹类型，既然是允许包裹，那么就需要判断children的最大高度。
+     * 然后把children最大高度赋给当前的heightMeasureSpec
+     * onMeasure过程：
+     * 1.先获取Mode-通过LayoutParams的height是否为WRAP_CONTENT判断
+     * 2.然后根据当前PageView的onMeasure给出的width，height去制作child的测量规则
+     * 3.使用child.measure测量孩子
+     * 4.获取measure之后的宽高，通过，child.getMeasuredWidth()和child.getMeasuredHeight()获取
+     * 5.通过for循环找出children中经过测量的最大高度值
+     * 6.找出的maxChildHeight加上padding既是当前PageView需要申请的Height值
+     * 7.通过setMeasuredDimension(int width,int height)告诉PageView的父控件当前PageView需要的宽高值。
+     * @param widthMeasureSpec
+     * @param heightMeasureSpec
+     */
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         if (!mIsDataReady) {
@@ -546,7 +568,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
                 MeasureSpec.makeMeasureSpec(widthSize - horizontalPadding, childWidthMode);
             final int childHeightMeasureSpec =
                 MeasureSpec.makeMeasureSpec(heightSize - verticalPadding, childHeightMode);
-
+            //根据child的layoutParams类型条件测量child的宽高。
             child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
             maxChildHeight = Math.max(maxChildHeight, child.getMeasuredHeight());
             if (DEBUG) Log.d(TAG, "\tmeasure-child" + i + ": " + child.getMeasuredWidth() + ", "
@@ -562,6 +584,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         // We can't call getChildOffset/getRelativeChildOffset until we set the measured dimensions.
         // We also wait until we set the measured dimensions before flushing the cache as well, to
         // ensure that the cache is filled with good values.
+        //在布局完成之前，初始化变量
         invalidateCachedOffsets();
 
         if (childCount > 0) {
@@ -672,10 +695,10 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
                 childLeft += childWidth + mPageSpacing;
             }
         }
-
+        //以下代码段只会在第一次onLayout是运行
         if (mFirstLayout && mCurrentPage >= 0 && mCurrentPage < getChildCount()) {
             setHorizontalScrollBarEnabled(false);
-            updateCurrentPageScroll();
+            updateCurrentPageScroll();//瞬时换页,在瞬时换页时避免出现滚动条
             setHorizontalScrollBarEnabled(true);
             mFirstLayout = false;
         }
@@ -732,6 +755,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         }
     }
 
+    /**
+     *
+     * @param index 即currentPage
+     * @return offset相对于父控件
+     */
     protected int getChildOffset(int index) {
         final boolean isRtl = isLayoutRtl();
         int[] childOffsets = Float.compare(mLayoutScale, 1f) == 0 ?
@@ -739,7 +767,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
 
         if (childOffsets != null && childOffsets[index] != -1) {
             return childOffsets[index];
-        } else {
+        } else {//初次进来走以下代码段
             if (getChildCount() == 0)
                 return 0;
 
@@ -757,6 +785,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         }
     }
 
+    /**
+     *
+     * @param index
+     * @return offset 相对于自身控件
+     */
     protected int getRelativeChildOffset(int index) {
         if (mChildRelativeOffsets != null && mChildRelativeOffsets[index] != -1) {
             return mChildRelativeOffsets[index];
@@ -882,6 +915,12 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         return false;
     }
 
+    /**
+     * 应该是适配TV的左右按键的方法
+     * @param focused
+     * @param direction
+     * @return
+     */
     @Override
     public boolean dispatchUnhandledMove(View focused, int direction) {
         // XXX-RTL: This will be fixed in a future CL
@@ -899,6 +938,12 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
         return super.dispatchUnhandledMove(focused, direction);
     }
 
+    /**
+     * 添加所有可以获取到焦点的控件，在这里添加的控件能在遥控中进行控制
+     * @param views
+     * @param direction
+     * @param focusableMode
+     */
     @Override
     public void addFocusables(ArrayList<View> views, int direction, int focusableMode) {
         // XXX-RTL: This will be fixed in a future CL
@@ -1439,6 +1484,7 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
     @Override
     public void requestChildFocus(View child, View focused) {
         super.requestChildFocus(child, focused);
+        //在TV中如果child获取了焦点，那么需要把获取焦点的page显示到中间
         int page = indexToPage(indexOfChild(child));
         if (page >= 0 && page != getCurrentPage() && !isInTouchMode()) {
             snapToPage(page);

@@ -207,10 +207,11 @@ public class InstallShortcutReceiver extends BroadcastReceiver {
         PendingInstallShortcutInfo info = new PendingInstallShortcutInfo(data, name, intent);
         info.icon = icon;
         info.iconResource = iconResource;
+        //mUserInstallQueue在workspace发生拖拽时时true，非拖拽时为false,一般情况下，都走else流程
         if (mUseInstallQueue || launcherNotLoaded) {
             String spKey = LauncherApplication.getSharedPreferencesKey();
             SharedPreferences sp = context.getSharedPreferences(spKey, Context.MODE_PRIVATE);
-            addToInstallQueue(sp, info);
+            addToInstallQueue(sp, info);//存放在SP文件中,SP文件中保留了一个StringSet来作为InstallQueue
         } else {
             processInstallShortcut(context, info);
         }

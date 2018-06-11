@@ -28,6 +28,9 @@ import android.widget.FrameLayout;
 
 import com.android.launcher.R;
 
+/**
+ * 是CellLayout的包装类
+ */
 public class Hotseat extends FrameLayout {
     @SuppressWarnings("unused")
     private static final String TAG = "Hotseat";
@@ -89,6 +92,12 @@ public class Hotseat extends FrameLayout {
     int getCellYFromOrder(int rank) {
         return hasVerticalHotseat() ? (mContent.getCountY() - (rank + 1)) : 0;
     }
+
+    /**
+     * 当前rank位置是否被all app按钮占用
+     * @param rank
+     * @return
+     */
     public boolean isAllAppsButtonRank(int rank) {
         return rank == mAllAppsButtonRank;
     }
@@ -142,6 +151,7 @@ public class Hotseat extends FrameLayout {
         int y = getCellYFromOrder(mAllAppsButtonRank);
         CellLayout.LayoutParams lp = new CellLayout.LayoutParams(x,y,1,1);
         lp.canReorder = false;
+        //添加all app到CellLayout的第x,y位置，即中间位置
         mContent.addViewToCellLayout(allAppsButton, -1, 0, lp, true);
     }
 }

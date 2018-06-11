@@ -98,11 +98,22 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         mDragController = controller;
     }
 
+    /**
+     * 让DragController接手keyEvent事件分发
+     * @param event
+     * @return
+     */
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         return mDragController.dispatchKeyEvent(event) || super.dispatchKeyEvent(event);
     }
 
+    /**
+     * region-区域
+     * @param folder
+     * @param ev
+     * @return
+     */
     private boolean isEventOverFolderTextRegion(Folder folder, MotionEvent ev) {
         getDescendantRectRelativeToSelf(folder.getEditTextRegion(), mHitRect);
         if (mHitRect.contains((int) ev.getX(), (int) ev.getY())) {
@@ -119,6 +130,13 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         return false;
     }
 
+    /**
+     * 处理down事件,重点是down事件是否处于正在打开的folder中
+     *
+     * @param ev
+     * @param intercept
+     * @return
+     */
     private boolean handleTouchDown(MotionEvent ev, boolean intercept) {
         Rect hitRect = new Rect();
         int x = (int) ev.getX();
@@ -131,12 +149,17 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
                     mCurrentResizeFrame = child;
                     mXDown = x;
                     mYDown = y;
+                    //阻止父级控件拦截touch事件
                     requestDisallowInterceptTouchEvent(true);
                     return true;
                 }
             }
         }
-
+        /**
+         *
+         *如果当前down事件是在打开的folder中，那么先看down的位置是否是在可编辑的EditView中，
+         * 如果不是，那么让EditView回到unfocus状态，并且隐藏掉软键盘
+         */
         Folder currentFolder = mLauncher.getWorkspace().getOpenFolder();
         if (currentFolder != null && !mLauncher.isFolderClingVisible() && intercept) {
             if (currentFolder.isEditingName()) {
@@ -145,7 +168,9 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
                     return true;
                 }
             }
-
+            /**
+             * 如果down没有发生在正在打开的folder中，那么久隐藏此holder，执行close操作
+             */
             getDescendantRectRelativeToSelf(currentFolder, hitRect);
             if (!isEventOverFolder(currentFolder, ev)) {
                 mLauncher.closeFolder();
@@ -155,6 +180,12 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         return false;
     }
 
+    /**
+     * 如果当前down事件处于打开的folder中，那么应该让folder处理此事件
+     * 否则则由DragController接手事件处理
+     * @param ev
+     * @return
+     */
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
         if (ev.getAction() == MotionEvent.ACTION_DOWN) {
@@ -329,6 +360,8 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         ViewParent viewParent = descendant.getParent();
         while (viewParent instanceof View && viewParent != this) {
             final View view = (View)viewParent;
+            //mapPoints方法，getLeft等是不会计算scale、translate、skew等后的view实际位置的，
+            // 而，使用matrix的mapPoints可以矫正view的实际位置
             view.getMatrix().mapPoints(pt);
             scale *= view.getScaleX();
             pt[0] += view.getLeft() - view.getScrollX();
@@ -360,6 +393,9 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         return mDragController.dispatchUnhandledMove(focused, direction);
     }
 
+    /**
+     * 用x,y值记录子控件的坐标,如果配合width，height就可以得此控件的位置和大小
+     */
     public static class LayoutParams extends FrameLayout.LayoutParams {
         public int x, y;
         public boolean customPosition = false;
@@ -404,6 +440,14 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
         }
     }
 
+    /**
+     * 利用 自定义的LayoutParams属性来布局子控件
+     * @param changed
+     * @param l
+     * @param t
+     * @param r
+     * @param b
+     */
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         super.onLayout(changed, l, t, r, b);
         int count = getChildCount();

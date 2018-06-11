@@ -1,18 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2011 The Android Open Source Project
-
-     Licensed under the Apache License, Version 2.0 (the "License");
-     you may not use this file except in compliance with the License.
-     You may obtain a copy of the License at
-
-          http://www.apache.org/licenses/LICENSE-2.0
-
-     Unless required by applicable law or agreed to in writing, software
-     distributed under the License is distributed on an "AS IS" BASIS,
-     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-     See the License for the specific language governing permissions and
-     limitations under the License.
--->
 <com.android.launcher2.AppsCustomizeTabHost
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:launcher="http://schemas.android.com/apk/res-auto"
@@ -31,6 +17,7 @@
             android:layout_height="@dimen/apps_customize_tab_bar_height"
             android:layout_marginTop="@dimen/apps_customize_tab_bar_margin_top"
             android:layout_gravity="center_horizontal">
+            <!--顶部的TabLayout-->
             <com.android.launcher2.FocusOnlyTabWidget
                 android:id="@android:id/tabs"
                 android:layout_width="match_parent"
@@ -40,6 +27,8 @@
                 android:background="@drawable/tab_unselected_holo"
                 android:tabStripEnabled="false"
                 android:divider="@null" />
+
+            <!--顶部的Market按钮，如果当前应用中有满足Category为Intent.CATEGORY_APP_MARKET的应用，那就显示-->
             <include
                 android:id="@+id/market_button"
                 layout="@layout/market_button"
@@ -70,6 +59,8 @@
                 launcher:clingFocusedX="@integer/apps_customize_cling_focused_x"
                 launcher:clingFocusedY="@integer/apps_customize_cling_focused_y"
                 launcher:maxGap="@dimen/workspace_max_gap" />
+
+            <!--此控件没有在Launcher中使用到-->
             <FrameLayout
                 android:id="@+id/animation_buffer"
                 android:layout_width="match_parent"
@@ -77,6 +68,8 @@
                 android:background="#FF000000"
                 android:visibility="gone" />
 
+
+            <!--此控件位于底部，当AppsCustomizePagedView滑动时在底部显示的指示器-->
             <include
                 android:id="@+id/paged_view_indicator"
                 layout="@layout/scroll_indicator"
@@ -86,6 +79,7 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!--当我们在all apps页面第一次长按某个应用图标时，出现的遮罩提示控件-->
     <include layout="@layout/all_apps_cling"
         android:id="@+id/all_apps_cling"
         android:layout_width="match_parent"

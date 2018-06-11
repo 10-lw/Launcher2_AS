@@ -81,6 +81,7 @@ public class DragView extends View {
 
         // Animate the view into the correct position
         mAnim = LauncherAnimUtils.ofFloat(this, 0f, 1f);
+        //在longpress后的缩放动画
         mAnim.setDuration(150);
         mAnim.addUpdateListener(new AnimatorUpdateListener() {
             @Override
@@ -240,7 +241,7 @@ public class DragView extends View {
 
     /**
      * Create a window containing this view and show it.
-     *
+     * 长按触发此事件，会有一个scale anim:过程150ms
      * @param windowToken obtained from v.getWindowToken() from one of your views
      * @param touchX the x coordinate the user touched in DragLayer coordinates
      * @param touchY the y coordinate the user touched in DragLayer coordinates
@@ -277,7 +278,7 @@ public class DragView extends View {
 
     /**
      * Move the window containing this view.
-     *
+     * 使用translationX和tanslationY值的改变来完成平移操作
      * @param touchX the x coordinate the user touched in DragLayer coordinates
      * @param touchY the y coordinate the user touched in DragLayer coordinates
      */
@@ -286,6 +287,9 @@ public class DragView extends View {
         setTranslationY(touchY - mRegistrationY + (int) mOffsetY);
     }
 
+    /**
+     * 当dragEnd时从DragLayer中移除此控件
+     */
     void remove() {
         if (getParent() != null) {
             mDragLayer.removeView(DragView.this);

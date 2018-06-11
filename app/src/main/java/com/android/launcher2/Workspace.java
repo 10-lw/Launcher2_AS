@@ -379,6 +379,12 @@ public class Workspace extends SmoothPagedView
         return r;
     }
 
+    /**
+     * 在拖拽开始后禁止install和uninstall，把这两种事件加入到Queue中
+     * @param source An object representing where the drag originated
+     * @param info The data associated with the object that is being dragged
+     * @param dragAction The drag action: either {@link DragController#DRAG_ACTION_MOVE}
+     */
     public void onDragStart(DragSource source, Object info, int dragAction) {
         mIsDragOccuring = true;
         updateChildrenLayersEnabled(false);
@@ -1878,18 +1884,17 @@ public class Workspace extends SmoothPagedView
         if (!child.isInTouchMode()) {
             return;
         }
-
+        //隐藏被长按的控件，并清除掉控件中的状态
         mDragInfo = cellInfo;
         child.setVisibility(INVISIBLE);
         CellLayout layout = (CellLayout) child.getParent().getParent();
         layout.prepareChildForDrag(child);
-
         child.clearFocus();
         child.setPressed(false);
 
         final Canvas canvas = new Canvas();
 
-        // The outline is used to visualize where the item will land if dropped
+        //在此处画出outline，即child的轮廓
         mDragOutline = createDragOutline(child, canvas, DRAG_BITMAP_PADDING);
         beginDragShared(child, this);
     }
@@ -1902,10 +1907,12 @@ public class Workspace extends SmoothPagedView
 
         final int bmpWidth = b.getWidth();
         final int bmpHeight = b.getHeight();
-
+        //scale时child相对于DragLayer的缩放比，mTempXY则记录了child相对于DragLayer的的x，y坐标
         float scale = mLauncher.getDragLayer().getLocationInDragLayer(child, mTempXY);
+        //如果scale比例为1，那么dragLayerX即是mTempXY[0]
         int dragLayerX =
                 Math.round(mTempXY[0] - (bmpWidth - scale * child.getWidth()) / 2);
+        //如果scale比例为1，那么dragLayerY即是mTempXY[1]
         int dragLayerY =
                 Math.round(mTempXY[1] - (bmpHeight - scale * bmpHeight) / 2
                         - DRAG_BITMAP_PADDING / 2);
@@ -1919,7 +1926,7 @@ public class Workspace extends SmoothPagedView
             int left = (bmpWidth - iconSize) / 2;
             int right = left + iconSize;
             int bottom = top + iconSize;
-            dragLayerY += top;
+            dragLayerY += top;//如果child还有paddingTop，那么还需要矫正paddingTop值
             // Note: The drag region is used to calculate drag layer offsets, but the
             // dragVisualizeOffset in addition to the dragRect (the size) to position the outline.
             dragVisualizeOffset = new Point(-DRAG_BITMAP_PADDING / 2,

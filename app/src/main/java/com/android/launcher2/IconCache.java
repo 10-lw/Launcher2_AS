@@ -34,6 +34,7 @@ import android.os.UserHandle;
 import java.util.HashMap;
 
 /**
+ * 内部使用HashMap集合来缓存Bitmap等信息
  * Cache of application icons.  Icons can be made from any thread.
  */
 public class IconCache {
@@ -82,6 +83,7 @@ public class IconCache {
 
         mContext = context;
         mPackageManager = context.getPackageManager();
+        //
         mIconDpi = activityManager.getLauncherLargeIconDensity();
         // need to set mIconDpi before getting default icon
         mDefaultIcon = makeDefaultIcon();

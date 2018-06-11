@@ -839,7 +839,7 @@ public class LauncherModel extends BroadcastReceiver {
                 if (mAppsCanBeOnRemoveableStorage) {
                     // Only rebind if we support removable storage. It catches the
                     // case where apps on the external sd card need to be reloaded.
-                    startLoaderFromBackground();
+                    startLoaderFromBackground();//
                 }
             } else {
                 // If we are replacing then just update the packages in the list
@@ -1297,10 +1297,10 @@ public class LauncherModel extends BroadcastReceiver {
             mApp.getLauncherProvider().loadDefaultFavoritesIfNecessary(0, false);
 
             synchronized (sBgLock) {
-                sBgWorkspaceItems.clear();
-                sBgAppWidgets.clear();
-                sBgFolders.clear();
-                sBgItemsIdMap.clear();
+                sBgWorkspaceItems.clear();//管理workspace或者hotseat
+                sBgAppWidgets.clear();//管理widget
+                sBgFolders.clear();//管理文件夹
+                sBgItemsIdMap.clear();//所有info管理
                 sBgDbIconCache.clear();
 
                 final ArrayList<Long> itemsToRemove = new ArrayList<Long>();
@@ -1374,6 +1374,7 @@ public class LauncherModel extends BroadcastReceiver {
                                     itemsToRemove.add(c.getLong(idIndex));
                                     continue;
                                 }
+
                                 try {
                                     intent = Intent.parseUri(intentDescription, 0);
                                 } catch (URISyntaxException e) {
@@ -1500,7 +1501,7 @@ public class LauncherModel extends BroadcastReceiver {
                                     int[] minSpan = Launcher.getMinSpanForWidget(context, provider);
                                     appWidgetInfo.minSpanX = minSpan[0];
                                     appWidgetInfo.minSpanY = minSpan[1];
-
+                                    //如果widget不再workspace或者HotSeat中，那么就忽略此widget
                                     container = c.getInt(containerIndex);
                                     if (container != LauncherSettings.Favorites.CONTAINER_DESKTOP &&
                                         container != LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
@@ -1508,6 +1509,7 @@ public class LauncherModel extends BroadcastReceiver {
                                             "CONTAINER_DESKTOP nor CONTAINER_HOTSEAT - ignoring!");
                                         continue;
                                     }
+
                                     appWidgetInfo.container = c.getInt(containerIndex);
 
                                     // check & update map of what's occupied
@@ -1805,9 +1807,10 @@ public class LauncherModel extends BroadcastReceiver {
                     otherAppWidgets);
             filterCurrentFolders(currentScreen, itemsIdMap, folders, currentFolders,
                     otherFolders);
+            //对WorkSpace中的itemInfo进行排序.
             sortWorkspaceItemsSpatially(currentWorkspaceItems);
             sortWorkspaceItemsSpatially(otherWorkspaceItems);
-
+            //当分离工作和排序工作都完成时，需要告诉Launcher开始绑定
             // Tell the workspace that we're about to start binding items
             r = new Runnable() {
                 public void run() {
@@ -1817,8 +1820,9 @@ public class LauncherModel extends BroadcastReceiver {
                     }
                 }
             };
+            //事件都是顺序执行的所以不必担心startBinding方法会出现在bindXXX之后
             runOnMainThread(r, MAIN_THREAD_BINDING_RUNNABLE);
-
+            //先绑定当前page，然后在考虑其他page
             // Load items on the current page，加载当前页面到launcher
             bindWorkspaceItems(oldCallbacks, currentWorkspaceItems, currentAppWidgets,
                     currentFolders, null);
@@ -2244,6 +2248,10 @@ public class LauncherModel extends BroadcastReceiver {
         // the db
         if (icon == null) {
             if (c != null) {
+                /**
+                 * 1.首先，从iconIndex中获取到bitmap
+                 * 2.对bitmap的宽高进行判断，如果bitmap>=需要的宽高，那么就裁剪出合适大小
+                 */
                 icon = getIconFromCursor(c, iconIndex, context);
             }
         }

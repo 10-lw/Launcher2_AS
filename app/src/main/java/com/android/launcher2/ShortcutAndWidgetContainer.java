@@ -48,6 +48,15 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
         mWallpaperManager = WallpaperManager.getInstance(context);
     }
 
+    /**
+     * 此方法调用时当前布局还未添加到父布局中
+     *
+     * @param cellWidth
+     * @param cellHeight
+     * @param widthGap
+     * @param heightGap
+     * @param countX
+     */
     public void setCellDimensions(int cellWidth, int cellHeight, int widthGap, int heightGap,
             int countX) {
         mCellWidth = cellWidth;
@@ -104,6 +113,7 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
     }
 
     public void setupLp(CellLayout.LayoutParams lp) {
+        //如果当前view未被locked才会被调用
         lp.setup(mCellWidth, mCellHeight, mWidthGap, mHeightGap, invertLayoutHorizontally(),
                 mCountX);
     }
@@ -113,6 +123,10 @@ public class ShortcutAndWidgetContainer extends ViewGroup {
         mInvertIfRtl = invert;
     }
 
+    /**
+     * 此处会把当前控件所知到cellwidth，cellheight，widthgap，heightgap以及当前
+     * @param child
+     */
     public void measureChild(View child) {
         final int cellWidth = mCellWidth;
         final int cellHeight = mCellHeight;

@@ -26,10 +26,14 @@ import android.view.ViewTreeObserver;
 
 import java.util.HashSet;
 
+/**
+ * 相当于用了一个集合把众多Animation动画与Launcher页面的生命周期相关联
+ */
 public class LauncherAnimUtils {
     static HashSet<Animator> sAnimators = new HashSet<Animator>();
     static Animator.AnimatorListener sEndAnimListener = new Animator.AnimatorListener() {
         public void onAnimationStart(Animator animation) {
+
         }
 
         public void onAnimationRepeat(Animator animation) {

@@ -15,6 +15,7 @@
  */
 package com.android.launcher2;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
@@ -47,7 +48,7 @@ import com.android.launcher.R;
 
 import java.io.IOException;
 import java.util.ArrayList;
-
+@SuppressLint("LongLogTag")
 public class WallpaperChooserDialogFragment extends DialogFragment implements
         AdapterView.OnItemSelectedListener, AdapterView.OnItemClickListener {
 
@@ -156,6 +157,7 @@ public class WallpaperChooserDialogFragment extends DialogFragment implements
         }
         return null;
     }
+
 
     private void selectWallpaper(int position) {
         try {

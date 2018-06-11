@@ -645,7 +645,7 @@ public class CellLayout extends ViewGroup {
             if (lp.cellVSpan < 0) lp.cellVSpan = mCountY;
 
             child.setId(childId);
-
+            //其实加载到CellLayout的应用都是加载到CellLayout的内部控件mShortcutsAndWidgets中
             mShortcutsAndWidgets.addView(child, index, lp);
 
             if (markCells) markCellsAsOccupiedForView(child);
@@ -732,13 +732,14 @@ public class CellLayout extends ViewGroup {
                 float scale = child.getScaleX();
                 frame = new Rect(child.getLeft(), child.getTop(), child.getRight(),
                         child.getBottom());
-                // The child hit rect is relative to the CellLayoutChildren parent, so we need to
-                // offset that by this CellLayout's padding to test an (x,y) point that is relative
-                // to this view.
+                //在new出来时，frame的宽高是为child的宽高-相对应parent控件ShortcutWidgetContainer的距离，
+                //距离cellLayout的距离加上ShortcutWidgetContainer与CellLayout的距离，也就是padding
+                //总结：此处计算->child位置=child与父控件(ShortcutWidgetContainer距离)+父控件到CellLayout距离
                 frame.offset(getPaddingLeft(), getPaddingTop());
+                //此处当child有scale时需要对frame进行缩放。
                 frame.inset((int) (frame.width() * (1f - scale) / 2),
                         (int) (frame.height() * (1f - scale) / 2));
-
+                //碰撞检测,如果点击的xy在child上，那么就使用CellInfo记录点击信息
                 if (frame.contains(x, y)) {
                     cellInfo.cell = child;
                     cellInfo.cellX = lp.cellX;
@@ -752,7 +753,7 @@ public class CellLayout extends ViewGroup {
         }
 
         mLastDownOnOccupiedCell = found;
-
+        //
         if (!found) {
             final int cellXY[] = mTmpXY;
             pointToCellExact(x, y, cellXY);
@@ -763,6 +764,7 @@ public class CellLayout extends ViewGroup {
             cellInfo.spanX = 1;
             cellInfo.spanY = 1;
         }
+        //使用tag记录CellInfo即当前的touch信息
         setTag(cellInfo);
     }
 
@@ -772,19 +774,21 @@ public class CellLayout extends ViewGroup {
         // even in the case where we return early. Not clearing here was causing bugs whereby on
         // long-press we'd end up picking up an item from a previous drag operation.
         final int action = ev.getAction();
-
+        //清除cellInfo中的信息-reset
         if (action == MotionEvent.ACTION_DOWN) {
             clearTagCellInfo();
         }
-
+        //当listener的onTouch返回true表示小屏模式或者还没完成切换，
+        // 小屏模式指代在all apps页面长按应用icon后进入Workspace处于的模式，state==mall or state==spring_load
+        //也就是说小模式下CellLayout内部的BubbleTextView不会响应事件
         if (mInterceptTouchListener != null && mInterceptTouchListener.onTouch(this, ev)) {
             return true;
         }
-
+        //在down事件时设置cellInfo标识当前touch的位置已经touch位置上的cell
         if (action == MotionEvent.ACTION_DOWN) {
             setTagToCellInfoForPoint((int) ev.getX(), (int) ev.getY());
         }
-
+        //默认不拦截事件
         return false;
     }
 
@@ -3169,12 +3173,15 @@ out:            for (int i = x; i < x + spanX - 1 && x < xCount; i++) {
     public static class LayoutParams extends ViewGroup.MarginLayoutParams {
         /**
          * Horizontal location of the item in the grid.
+         * cell二位数组中的x值，整数值，标识cell数组的第x行
+         *
          */
         @ViewDebug.ExportedProperty
         public int cellX;
 
         /**
          * Vertical location of the item in the grid.
+         * cell二位数组中的y值，整数值，标识cell数组的第y行
          */
         @ViewDebug.ExportedProperty
         public int cellY;
@@ -3255,6 +3262,15 @@ out:            for (int i = x; i < x + spanX - 1 && x < xCount; i++) {
             this.cellVSpan = cellVSpan;
         }
 
+        /**
+         * 类似于init初始化，用于计算当前layoutparams标识的view控件的x，y，width，height值
+         * @param cellWidth
+         * @param cellHeight
+         * @param widthGap
+         * @param heightGap
+         * @param invertHorizontally
+         * @param colCount
+         */
         public void setup(int cellWidth, int cellHeight, int widthGap, int heightGap,
                 boolean invertHorizontally, int colCount) {
             if (isLockedToGrid) {

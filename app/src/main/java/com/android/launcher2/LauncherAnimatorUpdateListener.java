@@ -26,5 +26,10 @@ abstract class LauncherAnimatorUpdateListener implements AnimatorUpdateListener 
         onAnimationUpdate(a, b);
     }
 
+    /**
+     *
+     * @param a 当前的float值
+     * @param b 剩余的float值
+     */
     abstract void onAnimationUpdate(float a, float b);
 }

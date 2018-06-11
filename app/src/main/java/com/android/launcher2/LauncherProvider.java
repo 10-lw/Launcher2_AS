@@ -308,7 +308,7 @@ public class LauncherProvider extends ContentProvider {
             // Default profileId to the serial number of this user.
             long userSerialNumber = um.getSerialNumberForUser(
                     android.os.Process.myUserHandle());
-
+            //表名favorites
             db.execSQL("CREATE TABLE favorites (" +
                     "_id INTEGER PRIMARY KEY," +
                     "title TEXT," +

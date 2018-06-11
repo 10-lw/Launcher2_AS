@@ -371,9 +371,6 @@ public final class Launcher extends Activity
         mAppWidgetHost = new LauncherAppWidgetHost(this, APPWIDGET_HOST_ID);
         mAppWidgetHost.startListening();
 
-        // If we are getting an onCreate, we can actually preempt onResume and unset mPaused here,
-        // this also ensures that any synchronous binding below doesn't re-trigger another
-        // LauncherModel load.
         mPaused = false;
 
         if (PROFILE_STARTUP) {
@@ -388,7 +385,7 @@ public final class Launcher extends Activity
         showFirstRunWorkspaceCling();
 		//appWidget监听
         registerContentObservers();
-
+        //空实现
         lockAllApps();
 
         mSavedState = savedInstanceState;
@@ -406,8 +403,7 @@ public final class Launcher extends Activity
 
         if (!mRestoring) {
             if (sPausedFromUserAction) {
-                // If the user leaves launcher, then we should just load items asynchronously when
-                // they return.
+                // 调用Launcher的startLoader方法从LauncherProvider内部的数据库中获取应用排列信息
                 mModel.startLoader(true, -1);//会在model中加载好info，并回调到bindItems，bindAppWidget，bindFolders
             } else {
                 // We only load the page synchronously if the user rotates (or triggers a
@@ -415,7 +411,7 @@ public final class Launcher extends Activity
                 mModel.startLoader(true, mWorkspace.getCurrentPage());
             }
         }
-		//如果当前app没有加载完成，那么显示加载弹框
+		//如果app没有加载完成，那么显示加载弹框
         if (!mModel.isAllAppsLoaded()) {
             ViewGroup appsCustomizeContentParent = (ViewGroup) mAppsCustomizeContent.getParent();
             mInflater.inflate(R.layout.apps_customize_progressbar, appsCustomizeContentParent);
@@ -427,7 +423,7 @@ public final class Launcher extends Activity
 		//home按键广播
         IntentFilter filter = new IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
         registerReceiver(mCloseSystemDialogsReceiver, filter);
-
+        //根据Google Search 应用是否存在来更新顶部SeartDropTargetBar的显示状态，此判断在每次onResume时也会触发
         updateGlobalIcons();
 
         // On large interfaces, we want the screen to auto-rotate based on the current orientation
@@ -442,6 +438,9 @@ public final class Launcher extends Activity
         sPausedFromUserAction = true;
     }
 
+    /**
+     * 更新顶部Search Bar的可见状态
+     */
     private void updateGlobalIcons() {
         boolean searchVisible = false;
         boolean voiceVisible = false;
@@ -450,10 +449,11 @@ public final class Launcher extends Activity
         if (sGlobalSearchIcon[coi] == null || sVoiceSearchIcon[coi] == null ||
                 sAppMarketIcon[coi] == null) {
             updateAppMarketIcon();
+            //如果global search可见，voice search才会可见
             searchVisible = updateGlobalSearchIcon();
             voiceVisible = updateVoiceSearchIcon(searchVisible);
         }
-        if (sGlobalSearchIcon[coi] != null) {
+        if (sGlobalSearchIcon[coi] != null) {//说明google search存在,那么更新seartch图片资源
              updateGlobalSearchIcon(sGlobalSearchIcon[coi]);
              searchVisible = true;
         }
@@ -464,6 +464,7 @@ public final class Launcher extends Activity
         if (sAppMarketIcon[coi] != null) {
             updateAppMarketIcon(sAppMarketIcon[coi]);
         }
+        //可见性发生改变时，需要控制整个search栏的background,此回调作用如此
         if (mSearchDropTargetBar != null) {
             mSearchDropTargetBar.onSearchPackagesChanged(searchVisible, voiceVisible);
         }
@@ -583,6 +584,7 @@ public final class Launcher extends Activity
 
     static int getScreen() {
         synchronized (sLock) {
+            //其实就是WorkSpace的currentPage0
             return sScreen;
         }
     }
@@ -696,6 +698,11 @@ public final class Launcher extends Activity
                 null);
     }
 
+    /**
+     * Widget的添加与删除操作，并在配以动画
+     * @param resultCode
+     * @param appWidgetId
+     */
     private void completeTwoStageWidgetDrop(final int resultCode, final int appWidgetId) {
         CellLayout cellLayout =
                 (CellLayout) mWorkspace.getChildAt(mPendingAddInfo.screen);
@@ -776,6 +783,8 @@ public final class Launcher extends Activity
         mPaused = false;
         sPausedFromUserAction = false;
         if (mRestoring || mOnResumeNeedsLoad) {
+            //如果configration改变 ，locale_changed，package_available事件
+            // 数据库发生改变，profile改变,就会进到此处，会重新load数据库信息
             mWorkspaceLoading = true;
             mModel.startLoader(true, -1);
             mRestoring = false;
@@ -792,6 +801,12 @@ public final class Launcher extends Activity
             if (mAppsCustomizeContent != null) {
                 mAppsCustomizeContent.setBulkBind(true);
             }
+
+            /**
+             * 所有的bindXXX事件都可能因为处于pause状态而暂停，当
+             * 用户重新进入launcher时，需要继续执行这些bind操作
+             *
+             */
             for (int i = 0; i < mOnResumeCallbacks.size(); i++) {
                 mOnResumeCallbacks.get(i).run();
             }
@@ -873,6 +888,10 @@ public final class Launcher extends Activity
     }
     */
 
+    /**
+     * 当前软键盘是否处于全键盘模式
+     * @return true，表示当前没有处于全键盘模式
+     */
     private boolean acceptFilter() {
         final InputMethodManager inputManager = (InputMethodManager)
                 getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -934,7 +953,11 @@ public final class Launcher extends Activity
 
     /**
      * Restores the previous state, if it exists.
-     *
+     * 1.恢复当前显示的模式，处于App页面？WorkSpace页？
+     * 2.当前WorkSpace的currentPage
+     * 3.是否有需要添加的itemInfo
+     * 4.是否有正在改名的folder
+     * 5.处于all app页面，那么当前处于的pageIndex
      * @param savedState The previous state.
      */
     private void restoreState(Bundle savedState) {
@@ -999,12 +1022,21 @@ public final class Launcher extends Activity
         final DragController dragController = mDragController;
         //最外层FrameLayout
         mLauncherView = findViewById(R.id.launcher);
+        //用于拖拽的拖拽布局
         mDragLayer = (DragLayer) findViewById(R.id.drag_layer);
+        //存放CellLayout，是一个PageView
         mWorkspace = (Workspace) mDragLayer.findViewById(R.id.workspace);
+        //存在于Land屏幕中
         mQsbDivider = findViewById(R.id.qsb_divider);
+        //WorkSpace与HotSeat之间的分界线，当进入All App模式时，会隐藏
         mDockDivider = findViewById(R.id.dock_divider);
         //设置launcher全屏显示
-
+        /**
+         * 1.View.SYSTEM_UI_FLAG_VISIBLE ：状态栏和Activity共存，Activity不全屏显示。也就是应用平常的显示画面
+         * 2.View.SYSTEM_UI_FLAG_FULLSCREEN ：Activity全屏显示，且状态栏被覆盖掉
+         * 3.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN ：Activity全屏显示，但是状态栏不会被覆盖掉，而是正常显示，只是Activity顶端布   局会被覆盖住
+         * 4.View.INVISIBLE ： Activity全屏显示，隐藏状态栏
+         */
         mLauncherView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
         mWorkspaceBackgroundDrawable = getResources().getDrawable(R.drawable.workspace_bg);
 
@@ -1020,8 +1052,10 @@ public final class Launcher extends Activity
 
         // Setup the workspace
         mWorkspace.setHapticFeedbackEnabled(false);
+        //处于长按事件，包括壁纸选择，长按拖拽等
         mWorkspace.setOnLongClickListener(this);
         mWorkspace.setup(dragController);
+        //让WorkSpace成为拖拽开始事件与结束事件的CallBack
         dragController.addDragListener(mWorkspace);
 
         // Get the search/delete bar
@@ -1045,6 +1079,7 @@ public final class Launcher extends Activity
 
     /**
      * Creates a view representing a shortcut.
+     * 在BindItems会调用，在onActivityResult中的completedAddShortCut中会调用
      *
      * @param info The data structure describing the shortcut.
      *
@@ -1066,7 +1101,9 @@ public final class Launcher extends Activity
      */
     View createShortcut(int layoutResId, ViewGroup parent, ShortcutInfo info) {
         BubbleTextView favorite = (BubbleTextView) mInflater.inflate(layoutResId, parent, false);
+        //设置图片和文字，从info中获取，并且设置当前View的Tag为info，这是为了方便在点击时获取
         favorite.applyFromShortcutInfo(info, mIconCache);
+        //设置点击事件，itemInfo的点击事件统一由Launcher处理
         favorite.setOnClickListener(this);
         return favorite;
     }
@@ -1292,6 +1329,7 @@ public final class Launcher extends Activity
                 // processing a multi-step drop
                 if (mAppsCustomizeTabHost != null && mPendingAddInfo.container == ItemInfo.NO_ID) {
                     mAppsCustomizeTabHost.reset();
+                    //当屏幕off时如果当前应用处于all app状态，那么需要让launcher回到workspace中
                     showWorkspace(false);
                 }
             } else if (Intent.ACTION_USER_PRESENT.equals(action)) {//此广播可被静态注册，当用户打开屏幕，解锁屏幕后发出的广播
@@ -1316,7 +1354,7 @@ public final class Launcher extends Activity
         filter.addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED);
         registerReceiver(mReceiver, filter);
         FirstFrameAnimatorHelper.initializeDrawListener(getWindow().getDecorView());
-        mAttached = true;
+        mAttached = true;//mAttached变量似乎只是用来当作unregister广播的flag
         mVisible = true;
     }
 
@@ -1446,6 +1484,10 @@ public final class Launcher extends Activity
         launcherInfo.hostView = null;
     }
 
+    /**
+     * 当CellLayout没有多余的空间给item时弹出提示框
+     * @param isHotseatLayout
+     */
     void showOutOfSpaceMessage(boolean isHotseatLayout) {
         int strId = (isHotseatLayout ? R.string.hotseat_out_of_space : R.string.out_of_space);
         Toast.makeText(this, getString(strId), Toast.LENGTH_SHORT).show();
@@ -1459,6 +1501,9 @@ public final class Launcher extends Activity
         return mModel;
     }
 
+    /**
+     * 当点击home按键时调用-广播接收者中调过来
+     */
     void closeSystemDialogs() {
         getWindow().closeAllPanels();
 
@@ -1623,13 +1668,14 @@ public final class Launcher extends Activity
         mWorkspace.removeAllViews();
         mWorkspace = null;
         mDragController = null;
-
+        //所有的动画在Activity销毁时可以取消动画执行
         LauncherAnimUtils.onDestroyActivity();
     }
 
     public DragController getDragController() {
         return mDragController;
     }
+
 
     @Override
     public void startActivityForResult(Intent intent, int requestCode) {
@@ -1924,9 +1970,15 @@ public final class Launcher extends Activity
         sFolders.remove(folder.id);
     }
 
+    /**
+     * 跳转壁纸选择页面
+     */
     private void startWallpaper() {
         showWorkspace(true);
         final Intent pickWallpaper = new Intent(Intent.ACTION_SET_WALLPAPER);
+        /**
+         * 提供一个符合intent的Activity列表给用户选择
+         */
         Intent chooser = Intent.createChooser(pickWallpaper,
                 getText(R.string.chooser_wallpaper));
         // NOTE: Adds a configure option to the chooser if the wallpaper supports it
@@ -1976,6 +2028,13 @@ public final class Launcher extends Activity
         return super.dispatchKeyEvent(event);
     }
 
+    /**
+     * Launcher的back事件不调用super
+     * 判断方式
+     * 1.如果当前处于all app页面，那么就退出此页面，回到workspace
+     * 2.如果当前处于workspace页面，且workspace中有打开的folder进入3
+     * 3.那么先判断当前是否处于编辑状态，如果是，就退出编辑状态，如果不是就关闭打开的folder
+     */
     @Override
     public void onBackPressed() {
         if (isAllAppsVisible()) {
@@ -2159,7 +2218,7 @@ public final class Launcher extends Activity
             UserHandle user = (UserHandle) intent.getParcelableExtra(ApplicationInfo.EXTRA_PROFILE);
             LauncherApps launcherApps = (LauncherApps)
                     this.getSystemService(Context.LAUNCHER_APPS_SERVICE);
-            if (useLaunchAnimation) {
+            if (useLaunchAnimation) {//是否进场动画
                 ActivityOptions opts = ActivityOptions.makeScaleUpAnimation(v, 0, 0,
                         v.getMeasuredWidth(), v.getMeasuredHeight());
                 if (user == null || user.equals(android.os.Process.myUserHandle())) {
@@ -2222,6 +2281,11 @@ public final class Launcher extends Activity
         }
     }
 
+    /**
+     * Folder点击事件回调
+     *
+     * @param folderIcon the view clicked
+     */
     private void handleFolderClick(FolderIcon folderIcon) {
         final FolderInfo info = folderIcon.getFolderInfo();
         Folder openFolder = mWorkspace.getFolderForTag(info);
@@ -2294,6 +2358,7 @@ public final class Launcher extends Activity
         fi.draw(mFolderIconCanvas);
         mFolderIconImageView.setImageBitmap(mFolderIconBitmap);
         if (fi.getFolder() != null) {
+            //设置缩放、旋转操作的锚点
             mFolderIconImageView.setPivotX(fi.getFolder().getPivotXForIconAnimation());
             mFolderIconImageView.setPivotY(fi.getFolder().getPivotYForIconAnimation());
         }
@@ -2304,7 +2369,7 @@ public final class Launcher extends Activity
         }
         mDragLayer.addView(mFolderIconImageView, lp);
         if (fi.getFolder() != null) {
-            fi.getFolder().bringToFront();
+            fi.getFolder().bringToFront();//改变当前控件的Z轴，使其位于父控件的顶端
         }
     }
 
@@ -2418,34 +2483,38 @@ public final class Launcher extends Activity
     }
 
     public boolean onLongClick(View v) {
-        if (!isDraggingEnabled()) return false;
+        if (!isDraggingEnabled()) return false;//能否拖拽，内部判断startLoader操作是否完成
         if (isWorkspaceLocked()) return false;
-        if (mState != State.WORKSPACE) return false;
-
-        if (!(v instanceof CellLayout)) {
+        if (mState != State.WORKSPACE) return false;//是否处于workSpace中
+        //长按分为两种：1.长按ItemInfo，2.长按空白处
+        if (!(v instanceof CellLayout)) {//主要目的是为了获取CellLayout
             v = (View) v.getParent().getParent();
-        }
+        }//判断当前长按控件是否是CellLayout，如果当前的v是shortcut平级的view，那么getParent就是ShortcutAndWidgetContainer，再次getParent即CellLayout
 
-        resetAddInfo();
+        resetAddInfo();//pendingAddInfo重置
         CellLayout.CellInfo longClickCellInfo = (CellLayout.CellInfo) v.getTag();
         // This happens when long clicking an item with the dpad/trackball
         if (longClickCellInfo == null) {
             return true;
         }
 
-        // The hotseat touch handling does not go through Workspace, and we always allow long press
-        // on hotseat items.
+        //cell信息是在CellLayout的onInterceptTouchEvent中控制的，
+        // 当WorkSpace不处于小屏模式时会在onInterceptTouchEvent中记录touchX,Y值以及点击的BubbleTextView
         final View itemUnderLongClick = longClickCellInfo.cell;
+        //是否允许长按事件
         boolean allowLongPress = isHotseatLayout(v) || mWorkspace.allowLongPress();
+        //当前处于允许长按状态，且没有控件正在被拖拽
         if (allowLongPress && !mDragController.isDragging()) {
+            //如果CellLayout没有BubbleTextView被点击，则说明是长按进入壁纸选择事件
             if (itemUnderLongClick == null) {
-                // User long pressed on empty space
+                //长按震动反馈
                 mWorkspace.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
                         HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING);
-                startWallpaper();
+                startWallpaper();//如果长按区域中没有ItemInfo，那么就处理为长按设置壁纸
             } else {
+                //Folder打开后的的长按拖拽事件不在这里处理
                 if (!(itemUnderLongClick instanceof Folder)) {
-                    // User long pressed on an item
+                    //在startDrag中让CellLayout中被长按的控件隐藏，并且调用DragController开始在DragLayer中处理拖拽事件
                     mWorkspace.startDrag(longClickCellInfo);
                 }
             }
@@ -2453,6 +2522,11 @@ public final class Launcher extends Activity
         return true;
     }
 
+    /**
+     * 判断当前layout是否属于HotSeat中
+     * @param layout CellLayout
+     * @return
+     */
     boolean isHotseatLayout(View layout) {
         return mHotseat != null && layout != null &&
                 (layout instanceof CellLayout) && (layout == mHotseat.getLayout());
@@ -2500,10 +2574,14 @@ public final class Launcher extends Activity
      * @param scaleFactor The scale factor used for the zoom
      */
     private void setPivotsForZoom(View view, float scaleFactor) {
+        //旋转或者缩放的锚点设为view控件的中点，其实此处不设置也可，系统默认为空间中点
         view.setPivotX(view.getWidth() / 2.0f);
         view.setPivotY(view.getHeight() / 2.0f);
     }
 
+    /**
+     * 当处于all app页面时让壁纸不可见
+     */
     void disableWallpaperIfInAllApps() {
         // Only disable it if we are in all apps
         if (isAllAppsVisible()) {
@@ -2874,6 +2952,10 @@ public final class Launcher extends Activity
         }
     }
 
+    /**
+     * 在launcher没有获取到焦点时，默认使用壁纸，如果获取焦点时，那么就需要判断当前是否处于all app中，如果是那么就disable壁纸
+     * @param hasFocus
+     */
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         if (!hasFocus) {
@@ -2930,8 +3012,9 @@ public final class Launcher extends Activity
                 .sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED);
     }
 
+
     void showAllApps(boolean animated) {
-        if (mState != State.WORKSPACE) return;
+        if (mState != State.WORKSPACE) return;//说明当前已经处于all app页面
 
         showAppsCustomizeHelper(animated, false);
         mAppsCustomizeTabHost.requestFocus();
@@ -3007,6 +3090,7 @@ public final class Launcher extends Activity
                 mDividerAnimator = null;
             }
             if (animated) {
+                //LauncherAnimUtils类用于管理Anim的生命周期，确保当Launcher销毁时，所有的Anim都被cancel
                 mDividerAnimator = LauncherAnimUtils.createAnimatorSet();
                 mDividerAnimator.playTogether(LauncherAnimUtils.ofFloat(mQsbDivider, "alpha", 1f),
                         LauncherAnimUtils.ofFloat(mDockDivider, "alpha", 1f));
@@ -3030,6 +3114,7 @@ public final class Launcher extends Activity
 
     /**
      * Shows the hotseat area.
+     * 内部主要有一个alpha动画
      */
     void showHotseat(boolean animated) {
         if (!LauncherApplication.isScreenLarge()) {
@@ -3189,6 +3274,7 @@ public final class Launcher extends Activity
 
         final SearchManager searchManager =
                 (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        //获取google search,如果当前系统中存在google search应用，那么顶部searchBar就可以显示
         ComponentName activityName = searchManager.getGlobalSearchActivity();
         if (activityName != null) {
             int coi = getCurrentOrientationIndexForGlobalIcons();
@@ -3205,7 +3291,7 @@ public final class Launcher extends Activity
             searchButton.setVisibility(View.VISIBLE);
             invalidatePressedFocusedStates(searchButtonContainer, searchButton);
             return true;
-        } else {
+        } else {//系统中没有google search时
             // We disable both search and voice search when there is no global search provider
             if (searchButtonContainer != null) searchButtonContainer.setVisibility(View.GONE);
             if (voiceButtonContainer != null) voiceButtonContainer.setVisibility(View.GONE);
@@ -3218,6 +3304,10 @@ public final class Launcher extends Activity
         }
     }
 
+    /**
+     * d昂google search存在时才会调用
+     * @param d
+     */
     private void updateGlobalSearchIcon(Drawable.ConstantState d) {
         final View searchButtonContainer = findViewById(R.id.search_button_container);
         final View searchButton = (ImageView) findViewById(R.id.search_button);
@@ -3225,6 +3315,11 @@ public final class Launcher extends Activity
         invalidatePressedFocusedStates(searchButtonContainer, searchButton);
     }
 
+    /**
+     * 通过该方法来控制voice search 是否可见，控制条件->当前系统中是否有Google Search
+     * @param searchVisible true标识voice search可见，false，不显示voice search,参数来源，来自于GlobalSearch判断
+     * @return 返回当前voice search控件是否处于可见状态
+     */
     private boolean updateVoiceSearchIcon(boolean searchVisible) {
         final View voiceButtonContainer = findViewById(R.id.voice_button_container);
         final View voiceButton = findViewById(R.id.voice_button);
@@ -3446,6 +3541,7 @@ public final class Launcher extends Activity
         }
         mWidgetsToAdvance.clear();
         if (mHotseat != null) {
+            //仅仅保留all app按钮
             mHotseat.resetLayout();
         }
     }

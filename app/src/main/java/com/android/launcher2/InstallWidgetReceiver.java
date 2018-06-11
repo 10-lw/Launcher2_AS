@@ -37,6 +37,7 @@ import com.android.launcher.R;
 
 
 /**
+ * 在应用中未用到
  * We will likely flesh this out later, to handle allow external apps to place widgets, but for now,
  * we just want to expose the action around for checking elsewhere.
  */

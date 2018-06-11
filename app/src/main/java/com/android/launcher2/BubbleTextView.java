@@ -16,6 +16,7 @@
 
 package com.android.launcher2;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -113,6 +114,10 @@ public class BubbleTextView extends TextView {
         return who == mBackground || super.verifyDrawable(who);
     }
 
+    /**
+     * TAG必须为itemInfo的子类
+     * @param tag
+     */
     @Override
     public void setTag(Object tag) {
         if (tag != null) {
@@ -121,12 +126,17 @@ public class BubbleTextView extends TextView {
         super.setTag(tag);
     }
 
+    /**
+     * state_pressed state_clicked state_enable state_focused等发生改变,
+     * 当长按时，此处会触发State改变进而执行setCellLayoutPressedOrFocusedIcon
+     */
     @Override
     protected void drawableStateChanged() {
         if (isPressed()) {
             // In this case, we have already created the pressed outline on ACTION_DOWN,
             // so we just need to do an invalidate to trigger draw
             if (!mDidInvalidateForPressedState) {
+                //区域重绘
                 setCellLayoutPressedOrFocusedIcon();
             }
         } else {
@@ -275,6 +285,7 @@ public class BubbleTextView extends TextView {
         return HolographicOutlineHelper.MAX_OUTER_BLUR_RADIUS / 2;
     }
 
+    @SuppressLint("WrongConstant")
     @Override
     public void draw(Canvas canvas) {
         final Drawable background = mBackground;

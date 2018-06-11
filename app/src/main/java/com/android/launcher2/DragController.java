@@ -143,7 +143,7 @@ public class DragController {
     /**
      * Used to create a new DragLayer from XML.
      *
-     * @param context The application's context.
+     * @param launcher The application's context.
      */
     public DragController(Launcher launcher) {
         Resources r = launcher.getResources();
@@ -171,7 +171,7 @@ public class DragController {
      * @param dragInfo The data associated with the object that is being dragged
      * @param dragAction The drag action: either {@link #DRAG_ACTION_MOVE} or
      *        {@link #DRAG_ACTION_COPY}
-     * @param dragRegion Coordinates within the bitmap b for the position of item being dragged.
+     * /@param dragRegion Coordinates within the bitmap b for the position of item being dragged.
      *          Makes dragging feel more precise, e.g. you can clip out a transparent border
      */
     public void startDrag(View v, Bitmap bmp, DragSource source, Object dragInfo, int dragAction,
@@ -224,22 +224,24 @@ public class DragController {
         for (DragListener listener : mListeners) {
             listener.onDragStart(source, dragInfo, dragAction);
         }
-
+        //mMotionDownX,mMotionDownY皆是由onInterceptTouchEvent获取
         final int registrationX = mMotionDownX - dragLayerX;
         final int registrationY = mMotionDownY - dragLayerY;
 
         final int dragRegionLeft = dragRegion == null ? 0 : dragRegion.left;
         final int dragRegionTop = dragRegion == null ? 0 : dragRegion.top;
-
+        //此处把mDragging置为true会导致DragLayer的onInterceptTouchEvent被DragController接收，最终DragLayer会拦截掉Touch事件
+        //让DragLayer自己处理onTouchEvent,然后会传到DragController自身的onTouchEvent身上来
         mDragging = true;
 
         mDragObject = new DropTarget.DragObject();
 
         mDragObject.dragComplete = false;
+
         mDragObject.xOffset = mMotionDownX - (dragLayerX + dragRegionLeft);
         mDragObject.yOffset = mMotionDownY - (dragLayerY + dragRegionTop);
-        mDragObject.dragSource = source;
-        mDragObject.dragInfo = dragInfo;
+        mDragObject.dragSource = source;//即workspace
+        mDragObject.dragInfo = dragInfo;//bubbleTextView的Tag,即ShortcutInfo
 
         mVibrator.vibrate(VIBRATE_DURATION);
 
@@ -489,6 +491,7 @@ public class DragController {
         DropTarget dropTarget = findDropTarget(x, y, coordinates);
         mDragObject.x = coordinates[0];
         mDragObject.y = coordinates[1];
+        //通知workspace当前dragView的xy值等信息，方便Workspace在onDragOver回调处理像显示轮廓等信息
         checkTouchMove(dropTarget);
 
         // Check if we are hovering over the scroll areas
@@ -505,6 +508,10 @@ public class DragController {
         checkTouchMove(dropTarget);
     }
 
+    /**
+     *回调事件
+     * @param dropTarget
+     */
     private void checkTouchMove(DropTarget dropTarget) {
         if (dropTarget != null) {
             DropTarget delegate = dropTarget.getDropTargetDelegate(mDragObject);
