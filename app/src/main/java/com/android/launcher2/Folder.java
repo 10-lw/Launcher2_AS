@@ -206,27 +206,28 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
     }
 
     public boolean onLongClick(View v) {
-        // Return if global dragging is not enabled
+        //内部判断是否WorkSpace正在从数据库中加载数据，即LoaderTask是否正在执行。
         if (!mLauncher.isDraggingEnabled()) return true;
 
         Object tag = v.getTag();
+        //文件夹的内部图标只能是ShortcutInfo
         if (tag instanceof ShortcutInfo) {
             ShortcutInfo item = (ShortcutInfo) tag;
             if (!v.isInTouchMode()) {
                 return false;
             }
-
+            //在长按时如果有第一次打开Folder时出现的cling提示，就dismiss掉
             mLauncher.dismissFolderCling(null);
-
+            //此方法其实就是在WorkSpace中创建一个当前被长按图标的轮廓mDragOutline
             mLauncher.getWorkspace().onDragStartedWithItem(v);
+            //beginDragShared方法内部主要在计算出拖拽控件在DragLayer中的位置后执行DragController的startDrag方法
             mLauncher.getWorkspace().beginDragShared(v, this);
             mIconDrawable = ((TextView) v).getCompoundDrawables()[1];
-
+            //记录当前被拖拽控件在Folder中的位置，然后把被拖拽控件从Folder中移除掉
             mCurrentDragInfo = item;
             mEmptyCell[0] = item.cellX;
             mEmptyCell[1] = item.cellY;
             mCurrentDragView = v;
-
             mContent.removeView(mCurrentDragView);
             mInfo.remove(mCurrentDragInfo);
             mDragInProgress = true;
@@ -571,6 +572,11 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         }
     }
 
+    /**
+     *
+     * @param empty 指的是长按应用图标所在位置的Cell坐标
+     * @param target
+     */
     private void realTimeReorder(int[] empty, int[] target) {
         boolean wrap;
         int startX;
@@ -578,13 +584,23 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         int startY;
         int delay = 0;
         float delayAmount = 30;
+        //target位置是否比empty位置靠后
         if (readingOrderGreaterThan(target, empty)) {
+            //DragView原始位置是否是那一行的最后一个，wrap=true，表示是最后一个
             wrap = empty[0] >= mContent.getCountX() - 1;
+            //如果是最后一个，那么startY就为下一行。
             startY = wrap ? empty[1] + 1 : empty[1];
+            //先进行行(hang)遍历
             for (int y = startY; y <= target[1]; y++) {
+                //如果是DragView原始位置所在行，那么只遍历原始位置之后的Cell，
+                // 如果是其他行，则从第一个开始遍历
                 startX = y == empty[1] ? empty[0] + 1 : 0;
+                //如果是最近Cell所在行，则只遍历最近Cell往前的Cell，如果是其他行，则endX为行末
                 endX = y < target[1] ? mContent.getCountX() - 1 : target[0];
                 for (int x = startX; x <= endX; x++) {
+                    /**
+                     * 在遍历过程中不断把符合位置筛选的应用图标往前移一个Cell。
+                     */
                     View v = mContent.getChildAt(x,y);
                     if (mContent.animateChildToPosition(v, empty[0], empty[1],
                             REORDER_ANIMATION_DURATION, delay, true, true)) {
@@ -595,13 +611,17 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
                     }
                 }
             }
-        } else {
+        } else {//target位置是否比empty位置靠前
+            //DragView原始位置是否是所在行第一个
             wrap = empty[0] == 0;
+            //如果是所在行第一个则startY(即需要挪动的Y)为上一行，否则为当前DragView原始位置所在行
             startY = wrap ? empty[1] - 1 : empty[1];
             for (int y = startY; y >= target[1]; y--) {
+
                 startX = y == empty[1] ? empty[0] - 1 : mContent.getCountX() - 1;
                 endX = y > target[1] ? 0 : target[0];
                 for (int x = startX; x >= endX; x--) {
+                    //满足条件(在empty和target之间)的控件都往后移动一个Cell
                     View v = mContent.getChildAt(x,y);
                     if (mContent.animateChildToPosition(v, empty[0], empty[1],
                             REORDER_ANIMATION_DURATION, delay, true, true)) {
@@ -626,7 +646,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         if (isLayoutRtl()) {
             mTargetCell[0] = mContent.getCountX() - mTargetCell[0] - 1;
         }
-
+        //在onDragOver只需调用过程中如果当前的DragView没有变化Cell位置。则内部只会被调用一次。
         if (mTargetCell[0] != mPreviousTargetCell[0] || mTargetCell[1] != mPreviousTargetCell[1]) {
             mReorderAlarm.cancelAlarm();
             mReorderAlarm.setOnAlarmListener(mReorderAlarmListener);
@@ -1010,10 +1030,13 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         if (item == mCurrentDragInfo) {
             ShortcutInfo si = (ShortcutInfo) mCurrentDragView.getTag();
             CellLayout.LayoutParams lp = (CellLayout.LayoutParams) mCurrentDragView.getLayoutParams();
+            //mEmptyCell位置其实在realTimeReorder过程中一直在变
             si.cellX = lp.cellX = mEmptyCell[0];
             si.cellX = lp.cellY = mEmptyCell[1];
             mContent.addViewToCellLayout(mCurrentDragView, -1, (int)item.id, lp, true);
             if (d.dragView.hasDrawn()) {
+                //其内部会先隐藏掉mCurrentDragView，然后让DragView平移到mCurrentDragView位置，
+                // 动画完成之后再让mCurrentDragView显示
                 mLauncher.getDragLayer().animateViewIntoPosition(d.dragView, mCurrentDragView);
             } else {
                 d.deferDragViewCleanupPostAnimation = false;

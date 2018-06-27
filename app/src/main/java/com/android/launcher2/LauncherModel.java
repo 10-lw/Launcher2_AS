@@ -338,66 +338,7 @@ public class LauncherModel extends BroadcastReceiver {
         runOnWorkerThread(r);
     }
 
-    /**
-     * 把itemInfo更新到db中，并且重新判断itemType来选择当前itemInfo该存放的List
-     * @param context
-     * @param values
-     * @param item
-     * @param callingFunction
-     */
-    static void updateItemInDatabaseHelper(Context context, final ContentValues values,
-            final ItemInfo item, final String callingFunction) {
-        final long itemId = item.id;
-        final Uri uri = LauncherSettings.Favorites.getContentUri(itemId, false);
-        final ContentResolver cr = context.getContentResolver();
 
-        final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
-        Runnable r = new Runnable() {
-            public void run() {
-                cr.update(uri, values, null, null);
-
-                // Lock on mBgLock *after* the db operation
-                synchronized (sBgLock) {
-                    checkItemInfoLocked(itemId, item, stackTrace);
-
-                    if (item.container != LauncherSettings.Favorites.CONTAINER_DESKTOP &&
-                            item.container != LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
-                        // Item is in a folder, make sure this folder exists
-                        if (!sBgFolders.containsKey(item.container)) {
-                            // An items container is being set to a that of an item which is not in
-                            // the list of Folders.
-                            String msg = "item: " + item + " container being set to: " +
-                                    item.container + ", not in the list of folders";
-                            Log.e(TAG, msg);
-                            Launcher.dumpDebugLogsToConsole();
-                        }
-                    }
-
-                    // Items are added/removed from the corresponding FolderInfo elsewhere, such
-                    // as in Workspace.onDrop. Here, we just add/remove them from the list of items
-                    // that are on the desktop, as appropriate
-                    ItemInfo modelItem = sBgItemsIdMap.get(itemId);
-                    if (modelItem.container == LauncherSettings.Favorites.CONTAINER_DESKTOP ||
-                            modelItem.container == LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
-                        switch (modelItem.itemType) {
-                            case LauncherSettings.Favorites.ITEM_TYPE_APPLICATION:
-                            case LauncherSettings.Favorites.ITEM_TYPE_SHORTCUT:
-                            case LauncherSettings.Favorites.ITEM_TYPE_FOLDER:
-                                if (!sBgWorkspaceItems.contains(modelItem)) {
-                                    sBgWorkspaceItems.add(modelItem);
-                                }
-                                break;
-                            default:
-                                break;
-                        }
-                    } else {
-                        sBgWorkspaceItems.remove(modelItem);
-                    }
-                }
-            }
-        };
-        runOnWorkerThread(r);
-    }
 
     public void flushWorkerThread() {
         mFlushingWorkerThread = true;
@@ -459,7 +400,66 @@ public class LauncherModel extends BroadcastReceiver {
 
         updateItemInDatabaseHelper(context, values, item, "moveItemInDatabase");
     }
+    /**
+     * 把itemInfo更新到db中，并且重新判断itemType来选择当前itemInfo该存放的List
+     * @param context
+     * @param values
+     * @param item
+     * @param callingFunction
+     */
+    static void updateItemInDatabaseHelper(Context context, final ContentValues values,
+                                           final ItemInfo item, final String callingFunction) {
+        final long itemId = item.id;
+        final Uri uri = LauncherSettings.Favorites.getContentUri(itemId, false);
+        final ContentResolver cr = context.getContentResolver();
 
+        final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
+        Runnable r = new Runnable() {
+            public void run() {
+                cr.update(uri, values, null, null);
+
+                // Lock on mBgLock *after* the db operation
+                synchronized (sBgLock) {
+                    checkItemInfoLocked(itemId, item, stackTrace);
+
+                    if (item.container != LauncherSettings.Favorites.CONTAINER_DESKTOP &&
+                            item.container != LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
+                        // Item is in a folder, make sure this folder exists
+                        if (!sBgFolders.containsKey(item.container)) {
+                            // An items container is being set to a that of an item which is not in
+                            // the list of Folders.
+                            String msg = "item: " + item + " container being set to: " +
+                                    item.container + ", not in the list of folders";
+                            Log.e(TAG, msg);
+                            Launcher.dumpDebugLogsToConsole();
+                        }
+                    }
+
+                    // Items are added/removed from the corresponding FolderInfo elsewhere, such
+                    // as in Workspace.onDrop. Here, we just add/remove them from the list of items
+                    // that are on the desktop, as appropriate
+                    ItemInfo modelItem = sBgItemsIdMap.get(itemId);
+                    if (modelItem.container == LauncherSettings.Favorites.CONTAINER_DESKTOP ||
+                            modelItem.container == LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
+                        switch (modelItem.itemType) {
+                            case LauncherSettings.Favorites.ITEM_TYPE_APPLICATION:
+                            case LauncherSettings.Favorites.ITEM_TYPE_SHORTCUT:
+                            case LauncherSettings.Favorites.ITEM_TYPE_FOLDER:
+                                if (!sBgWorkspaceItems.contains(modelItem)) {
+                                    sBgWorkspaceItems.add(modelItem);
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    } else {
+                        sBgWorkspaceItems.remove(modelItem);
+                    }
+                }
+            }
+        };
+        runOnWorkerThread(r);
+    }
     /**
      * Move and/or resize item in the DB to a new <container, screen, cellX, cellY, spanX, spanY>
      */
@@ -631,6 +631,7 @@ public class LauncherModel extends BroadcastReceiver {
         // in the hotseat
         if (context instanceof Launcher && screen < 0 &&
                 container == LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
+            //如果在HotSeat中那么screen的值就是cellX。
             item.screen = ((Launcher) context).getHotseat().getOrderInHotseat(cellX, cellY);
         } else {
             item.screen = screen;
@@ -638,11 +639,14 @@ public class LauncherModel extends BroadcastReceiver {
 
         final ContentValues values = new ContentValues();
         final ContentResolver cr = context.getContentResolver();
+        //在container，cellX，cellY，screen赋值后，把itemInfo的各成员添加到values中
         item.onAddToDatabase(context, values);
 
         LauncherApplication app = (LauncherApplication) context.getApplicationContext();
+        //其内部其实就是maxId+1
         item.id = app.getLauncherProvider().generateNewId();
         values.put(LauncherSettings.Favorites._ID, item.id);
+        //更新cellX，cellY。
         item.updateValuesWithCoordinates(values, item.cellX, item.cellY);
 
         final StackTraceElement[] stackTrace = new Throwable().getStackTrace();
@@ -653,7 +657,7 @@ public class LauncherModel extends BroadcastReceiver {
                         + cellY + ")";
                 Launcher.sDumpLogs.add(transaction);
                 Log.d(TAG, transaction);
-
+                //具体执行数据库的CURD操作
                 cr.insert(notify ? LauncherSettings.Favorites.CONTENT_URI :
                         LauncherSettings.Favorites.CONTENT_URI_NO_NOTIFICATION, values);
 

@@ -71,14 +71,15 @@ import java.util.List;
 public class LauncherProvider extends ContentProvider {
     private static final String TAG = "Launcher.LauncherProvider";
     private static final boolean LOGD = false;
-
+    //数据库名
     private static final String DATABASE_NAME = "launcher.db";
-
+    //数据库版本
     private static final int DATABASE_VERSION = 13;
-
+    //Provider主机标识符
     static final String AUTHORITY = "com.android.launcher2.settings";
-
+    //路径标识
     static final String TABLE_FAVORITES = "favorites";
+    //是否notify
     static final String PARAMETER_NOTIFY = "notify";
     static final String DB_CREATED_BUT_DEFAULT_WORKSPACE_NOT_LOADED =
             "DB_CREATED_BUT_DEFAULT_WORKSPACE_NOT_LOADED";
@@ -109,8 +110,10 @@ public class LauncherProvider extends ContentProvider {
     public String getType(Uri uri) {
         SqlArguments args = new SqlArguments(uri, null, null);
         if (TextUtils.isEmpty(args.where)) {
+            //多条
             return "vnd.android.cursor.dir/" + args.table;
         } else {
+            //单条
             return "vnd.android.cursor.item/" + args.table;
         }
     }

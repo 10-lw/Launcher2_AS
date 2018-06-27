@@ -131,7 +131,7 @@ public class DragLayer extends FrameLayout implements ViewGroup.OnHierarchyChang
     }
 
     /**
-     * 处理down事件,重点是down事件是否处于正在打开的folder中
+     * 处理down事件,重点是down事件发生时是否有folder正处于打开状态
      *
      * @param ev
      * @param intercept

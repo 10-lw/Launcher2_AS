@@ -1048,7 +1048,7 @@ public final class Launcher extends Activity
         if (mHotseat != null) {
             //传递launcher引用
             mHotseat.setup(this);
-        }
+    }
 
         // Setup the workspace
         mWorkspace.setHapticFeedbackEnabled(false);
@@ -1981,17 +1981,6 @@ public final class Launcher extends Activity
          */
         Intent chooser = Intent.createChooser(pickWallpaper,
                 getText(R.string.chooser_wallpaper));
-        // NOTE: Adds a configure option to the chooser if the wallpaper supports it
-        //       Removed in Eclair MR1
-//        WallpaperManager wm = (WallpaperManager)
-//                getSystemService(Context.WALLPAPER_SERVICE);
-//        WallpaperInfo wi = wm.getWallpaperInfo();
-//        if (wi != null && wi.getSettingsActivity() != null) {
-//            LabeledIntent li = new LabeledIntent(getPackageName(),
-//                    R.string.configure_wallpaper, 0);
-//            li.setClassName(wi.getPackageName(), wi.getSettingsActivity());
-//            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] { li });
-//        }
         startActivityForResult(chooser, REQUEST_PICK_WALLPAPER);
     }
 
@@ -2683,6 +2672,7 @@ public final class Launcher extends Activity
      * of the screen.
      */
     private void showAppsCustomizeHelper(final boolean animated, final boolean springLoaded) {
+        //取消掉之前的State变化动画。
         if (mStateAnimation != null) {
             mStateAnimation.setDuration(0);
             mStateAnimation.cancel();
@@ -2693,6 +2683,7 @@ public final class Launcher extends Activity
         final int duration = res.getInteger(R.integer.config_appsCustomizeZoomInTime);
         final int fadeDuration = res.getInteger(R.integer.config_appsCustomizeFadeInTime);
         final float scale = (float) res.getInteger(R.integer.config_appsCustomizeZoomScaleFactor);
+
         final View fromView = mWorkspace;
         final AppsCustomizeTabHost toView = mAppsCustomizeTabHost;
         final int startDelay =
@@ -2851,7 +2842,7 @@ public final class Launcher extends Activity
      */
     private void hideAppsCustomizeHelper(State toState, final boolean animated,
             final boolean springLoaded, final Runnable onCompleteRunnable) {
-
+        //如果State切换动画没有完成，则取消掉State切换。
         if (mStateAnimation != null) {
             mStateAnimation.setDuration(0);
             mStateAnimation.cancel();
@@ -2864,30 +2855,35 @@ public final class Launcher extends Activity
                 res.getInteger(R.integer.config_appsCustomizeFadeOutTime);
         final float scaleFactor = (float)
                 res.getInteger(R.integer.config_appsCustomizeZoomScaleFactor);
+        //动画开始结束的控件，此处与showAppsCustomizeHelper相反。
         final View fromView = mAppsCustomizeTabHost;
         final View toView = mWorkspace;
         Animator workspaceAnim = null;
-
+        //enterSpringLoadedDragMode可知toState为APPS_CUSTOMIZE_SPRING_LOADED。
         if (toState == State.WORKSPACE) {
             int stagger = res.getInteger(R.integer.config_appsCustomizeWorkspaceAnimationStagger);
             workspaceAnim = mWorkspace.getChangeStateAnimation(
                     Workspace.State.NORMAL, animated, stagger);
         } else if (toState == State.APPS_CUSTOMIZE_SPRING_LOADED) {
+            //workspace动画，包含平移+缩放+CellLayout边框+WorkSpace的背景
             workspaceAnim = mWorkspace.getChangeStateAnimation(
                     Workspace.State.SPRING_LOADED, animated);
         }
-
+        //设置fromView的动画锚点
         setPivotsForZoom(fromView, scaleFactor);
+        //设置壁纸可见性
         updateWallpaperVisibility(true);
+        //主要是HotSeat透明度变化
         showHotseat(animated);
         if (animated) {
+            //AppsCustomizePagedView整体的一个放大动画，放大倍数为scaleFactor:7倍
             final LauncherViewPropertyAnimator scaleAnim =
                     new LauncherViewPropertyAnimator(fromView);
             scaleAnim.
                 scaleX(scaleFactor).scaleY(scaleFactor).
                 setDuration(duration).
                 setInterpolator(new Workspace.ZoomInInterpolator());
-
+            //fromView的透明度动画从1~0
             final ObjectAnimator alphaAnim = LauncherAnimUtils
                 .ofFloat(fromView, "alpha", 1f, 0f)
                 .setDuration(fadeOutDuration);
@@ -2896,6 +2892,7 @@ public final class Launcher extends Activity
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
                     float t = 1f - (Float) animation.getAnimatedValue();
+                    //调用fromView及toView的onLauncherTransitionStep方法fromView即AppsCustomizePagedView内部空实现
                     dispatchOnLauncherTransitionStep(fromView, t);
                     dispatchOnLauncherTransitionStep(toView, t);
                 }
@@ -2911,6 +2908,7 @@ public final class Launcher extends Activity
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     updateWallpaperVisibility(true);
+                    //动画结束时隐藏掉all apps页面
                     fromView.setVisibility(View.GONE);
                     dispatchOnLauncherTransitionEnd(fromView, animated, true);
                     dispatchOnLauncherTransitionEnd(toView, animated, true);
@@ -2924,9 +2922,10 @@ public final class Launcher extends Activity
                     mAppsCustomizeContent.resumeScrolling();
                 }
             });
-
+            //此处一起播放FromView的放大动画和透明度动画。
             mStateAnimation.playTogether(scaleAnim, alphaAnim);
             if (workspaceAnim != null) {
+                //播放workspace动画，包含平移+缩放+CellLayout边框+WorkSpace的背景
                 mStateAnimation.play(workspaceAnim);
             }
             dispatchOnLauncherTransitionStart(fromView, animated, true);

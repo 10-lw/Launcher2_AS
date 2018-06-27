@@ -19,6 +19,7 @@ package com.android.launcher2;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -284,6 +285,11 @@ public abstract class PagedView extends ViewGroup implements ViewGroup.OnHierarc
     int getCurrentPage() {
         return mCurrentPage;
     }
+
+    /**
+     * 除非在滑动状态，否则mNextPage=INVALID_PAGE,而在Scroller.startScroll时会处于mNextPage=下个页面
+     * @return
+     */
     int getNextPage() {
         return (mNextPage != INVALID_PAGE) ? mNextPage : mCurrentPage;
     }

@@ -100,14 +100,14 @@ public abstract class PagedViewWithDraggableItems extends PagedView
 
     @Override
     public boolean onLongClick(View v) {
-        // Return early if this is not initiated from a touch
+        //如果被点击控件没有处于Touch模式
         if (!v.isInTouchMode()) return false;
-        // Return early if we are still animating the pages
+        //如果当前正在滑动page
         if (mNextPage != INVALID_PAGE) return false;
-        // When we have exited all apps or are in transition, disregard long clicks
+        // 如果没有当前处于All Apps页面，或者WorkSpace正在切换状态
         if (!mLauncher.isAllAppsVisible() ||
                 mLauncher.getWorkspace().isSwitchingState()) return false;
-        // Return if global dragging is not enabled
+        //如果LauncherModel中的LoaderTask没有执行完毕
         if (!mLauncher.isDraggingEnabled()) return false;
 
         return beginDragging(v);

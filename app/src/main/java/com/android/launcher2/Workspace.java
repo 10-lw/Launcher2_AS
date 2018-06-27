@@ -521,13 +521,10 @@ public class Workspace extends SmoothPagedView
                 return;
             }
         }
-
         final CellLayout layout;
         if (container == LauncherSettings.Favorites.CONTAINER_HOTSEAT) {
             layout = mLauncher.getHotseat().getLayout();
             child.setOnKeyListener(null);
-
-            // Hide folder title in the hotseat
             if (child instanceof FolderIcon) {
                 ((FolderIcon) child).setTextVisible(false);
             }
@@ -579,11 +576,13 @@ public class Workspace extends SmoothPagedView
         if (!(child instanceof Folder)) {
             child.setHapticFeedbackEnabled(false);
             child.setOnLongClickListener(mLongClickListener);
+            Log.i(TAG,"addInScreen->child:"+child.getClass().getSimpleName());
+
         }
         if (child instanceof DropTarget) {
             mDragController.addDropTarget((DropTarget) child);
         }
-    }
+       }
 
     /**
      * Check if the point (x, y) hits a given page.
@@ -1094,9 +1093,10 @@ public class Workspace extends SmoothPagedView
 
     void showOutlines() {
         if (!isSmall() && !mIsSwitchingState) {
+            Log.i(TAG,"showOutlines");
             if (mChildrenOutlineFadeOutAnimation != null) mChildrenOutlineFadeOutAnimation.cancel();
             if (mChildrenOutlineFadeInAnimation != null) mChildrenOutlineFadeInAnimation.cancel();
-            mChildrenOutlineFadeInAnimation = LauncherAnimUtils.ofFloat(this, "childrenOutlineAlpha", 1.0f);
+            mChildrenOutlineFadeInAnimation = LauncherAnimUtils.ofFloat(this, "childrenOutlineAlpha", 0,1.0f);
             mChildrenOutlineFadeInAnimation.setDuration(CHILDREN_OUTLINE_FADE_IN_DURATION);
             mChildrenOutlineFadeInAnimation.start();
         }
@@ -1584,11 +1584,13 @@ public class Workspace extends SmoothPagedView
         setCurrentPage(getNextPage());
 
         final State oldState = mState;
+        //老状态
         final boolean oldStateIsNormal = (oldState == State.NORMAL);
         final boolean oldStateIsSpringLoaded = (oldState == State.SPRING_LOADED);
         final boolean oldStateIsSmall = (oldState == State.SMALL);
         mState = state;
         final boolean stateIsNormal = (state == State.NORMAL);
+        //新状态
         final boolean stateIsSpringLoaded = (state == State.SPRING_LOADED);
         final boolean stateIsSmall = (state == State.SMALL);
         float finalScaleFactor = 1.0f;
@@ -1598,13 +1600,17 @@ public class Workspace extends SmoothPagedView
         boolean zoomIn = true;
 
         if (state != State.NORMAL) {
+            //mSpringLoadedShrinkFactor = 0.8f如果是small模式则为0.7f
             finalScaleFactor = mSpringLoadedShrinkFactor - (stateIsSmall ? 0.1f : 0);
+            //设置每一页的空隔为15dp
             setPageSpacing(mSpringLoadedPageSpacing);
+            //如果是从Normal->Small
             if (oldStateIsNormal && stateIsSmall) {
+                //
                 zoomIn = false;
                 setLayoutScale(finalScaleFactor);
                 updateChildrenLayersEnabled(false);
-            } else {
+            } else {//
                 finalBackgroundAlpha = 1.0f;
                 setLayoutScale(finalScaleFactor);
             }
@@ -1656,6 +1662,7 @@ public class Workspace extends SmoothPagedView
                 cl.setTranslationY(translationY);
                 cl.setScaleX(finalScaleFactor);
                 cl.setScaleY(finalScaleFactor);
+                //设置CellLayout的边框颜色透明度
                 cl.setBackgroundAlpha(finalBackgroundAlpha);
                 cl.setShortcutAndWidgetAlpha(finalAlpha);
             }
@@ -1666,6 +1673,7 @@ public class Workspace extends SmoothPagedView
                 final int i = index;
                 final CellLayout cl = (CellLayout) getChildAt(i);
                 float currentAlpha = cl.getShortcutsAndWidgets().getAlpha();
+                //如果透明度为0。即不可见则直接set
                 if (mOldAlphas[i] == 0 && mNewAlphas[i] == 0) {
                     cl.setTranslationX(mNewTranslationXs[i]);
                     cl.setTranslationY(mNewTranslationYs[i]);
@@ -1675,6 +1683,7 @@ public class Workspace extends SmoothPagedView
                     cl.setShortcutAndWidgetAlpha(mNewAlphas[i]);
                     cl.setRotationY(mNewRotationYs[i]);
                 } else {
+                    //如果透明度不为0，即可见时,则开始执行平移+缩放动画。
                     LauncherViewPropertyAnimator a = new LauncherViewPropertyAnimator(cl);
                     a.translationX(mNewTranslationXs[i])
                         .translationY(mNewTranslationYs[i])
@@ -1683,7 +1692,7 @@ public class Workspace extends SmoothPagedView
                         .setDuration(duration)
                         .setInterpolator(mZoomInInterpolator);
                     anim.play(a);
-
+                    //透明度动画
                     if (mOldAlphas[i] != mNewAlphas[i] || currentAlpha != mNewAlphas[i]) {
                         LauncherViewPropertyAnimator alphaAnim =
                             new LauncherViewPropertyAnimator(cl.getShortcutsAndWidgets());
@@ -1692,6 +1701,7 @@ public class Workspace extends SmoothPagedView
                             .setInterpolator(mZoomInInterpolator);
                         anim.play(alphaAnim);
                     }
+                    //CellLayout边框动画
                     if (mOldBackgroundAlphas[i] != 0 ||
                         mNewBackgroundAlphas[i] != 0) {
                         ValueAnimator bgAnim =
@@ -1712,9 +1722,8 @@ public class Workspace extends SmoothPagedView
         }
 
         if (stateIsSpringLoaded) {
-            // Right now we're covered by Apps Customize
-            // Show the background gradient immediately, so the gradient will
-            // be showing once AppsCustomize disappears
+            //
+            //workspace透明度变化
             animateBackgroundGradient(getResources().getInteger(
                     R.integer.config_appsCustomizeSpringLoadedBgAlpha) / 100f, false);
         } else {
@@ -1902,7 +1911,7 @@ public class Workspace extends SmoothPagedView
     public void beginDragShared(View child, DragSource source) {
         Resources r = getResources();
 
-        // The drag bitmap follows the touch point around on the screen
+        //此方法内部主要通过((TextView) v).getCompoundDrawables()[1]获取bitmap
         final Bitmap b = createDragBitmap(child, new Canvas(), DRAG_BITMAP_PADDING);
 
         final int bmpWidth = b.getWidth();
@@ -1937,17 +1946,18 @@ public class Workspace extends SmoothPagedView
             dragRect = new Rect(0, 0, child.getWidth(), previewSize);
         }
 
-        // Clear the pressed state if necessary
+        //此处再次清除焦点和press等，其实在其上已经清除过
         if (child instanceof BubbleTextView) {
             BubbleTextView icon = (BubbleTextView) child;
             icon.clearPressedOrFocusedBackground();
         }
-
+        //把拖拽控制权交给mDragController即DragController类
         mDragController.startDrag(b, dragLayerX, dragLayerY, source, child.getTag(),
                 DragController.DRAG_ACTION_MOVE, dragVisualizeOffset, dragRect, scale);
+        //用完回收，好习惯
         b.recycle();
 
-        // Show the scrolling indicator when you pick up an item
+        // 不显示指示器
         showScrollingIndicator(false);
     }
 
@@ -2013,22 +2023,26 @@ public class Workspace extends SmoothPagedView
                     mTargetCell);
             float distance = dropTargetLayout.getDistanceFromCell(mDragViewVisualCenter[0],
                     mDragViewVisualCenter[1], mTargetCell);
+            //创建Folder
             if (willCreateUserFolder((ItemInfo) d.dragInfo, dropTargetLayout,
                     mTargetCell, distance, true)) {
                 return true;
             }
+            //加入已存在的Folder
             if (willAddToExistingUserFolder((ItemInfo) d.dragInfo, dropTargetLayout,
                     mTargetCell, distance)) {
                 return true;
             }
 
             int[] resultSpan = new int[2];
+            //腾出区域
             mTargetCell = dropTargetLayout.createArea((int) mDragViewVisualCenter[0],
                     (int) mDragViewVisualCenter[1], minSpanX, minSpanY, spanX, spanY,
                     null, mTargetCell, resultSpan, CellLayout.MODE_ACCEPT_DROP);
+            //大于0表示可以腾出区域
             boolean foundCell = mTargetCell[0] >= 0 && mTargetCell[1] >= 0;
 
-            // Don't accept the drop if there's no room for the item
+            //如果没有mTargetCell不可腾出区域，那么就返回false。
             if (!foundCell) {
                 // Don't show the message if we are dropping on the AllApps button and the hotseat
                 // is full
@@ -2048,6 +2062,15 @@ public class Workspace extends SmoothPagedView
         return true;
     }
 
+    /**
+     * 通过判断targetCell与dragView的距离是否小于某个值，且dragInfo是否是application或者shortcut之一，来判断是否能创建Folder
+     * @param info
+     * @param target
+     * @param targetCell
+     * @param distance
+     * @param considerTimeout
+     * @return
+     */
     boolean willCreateUserFolder(ItemInfo info, CellLayout target, int[] targetCell, float
             distance, boolean considerTimeout) {
         if (distance > mMaxDistanceForFolderCreation) return false;
@@ -2194,6 +2217,7 @@ public class Workspace extends SmoothPagedView
         if (d.dragSource != this) {
             final int[] touchXY = new int[] { (int) mDragViewVisualCenter[0],
                     (int) mDragViewVisualCenter[1] };
+            //表示从all apps页面拖拽过来，或者FolderIcon拖拽过来。
             onDropExternal(touchXY, d.dragInfo, dropTargetLayout, false, d);
         } else if (mDragInfo != null) {
             final View cell = mDragInfo.cell;
@@ -2218,13 +2242,12 @@ public class Workspace extends SmoothPagedView
                 float distance = dropTargetLayout.getDistanceFromCell(mDragViewVisualCenter[0],
                         mDragViewVisualCenter[1], mTargetCell);
 
-                // If the item being dropped is a shortcut and the nearest drop
-                // cell also contains a shortcut, then create a folder with the two shortcuts.
+                //创造Folder，主要判断流程还会根据acceptDrop走，最终调用Launcher.java的addFolder方法添加FolderIcon到WorkSpace(在addFolder中又使用addInScreen方法)中
                 if (!mInScrollArea && createUserFolderIfNecessary(cell, container,
                         dropTargetLayout, mTargetCell, distance, false, d.dragView, null)) {
                     return;
                 }
-
+                //添加到已存在的Folder中，主要是添加到FoldeInfo的contents中
                 if (addToExistingFolderIfNecessary(cell, dropTargetLayout, mTargetCell,
                         distance, d, false)) {
                     return;
@@ -2241,6 +2264,7 @@ public class Workspace extends SmoothPagedView
                 }
 
                 int[] resultSpan = new int[2];
+                //能否在最近mTargetCell位置找出策略来腾出位置
                 mTargetCell = dropTargetLayout.createArea((int) mDragViewVisualCenter[0],
                         (int) mDragViewVisualCenter[1], minSpanX, minSpanY, spanX, spanY, cell,
                         mTargetCell, resultSpan, CellLayout.MODE_ON_DROP);
@@ -2267,6 +2291,7 @@ public class Workspace extends SmoothPagedView
                     final ItemInfo info = (ItemInfo) cell.getTag();
                     if (hasMovedLayouts) {
                         // Reparent the view
+                        //移除原来的DragView所代表的的应用图标，并重新添加添加到WorkSpace的mTargetCell位置
                         getParentCellLayoutForView(cell).removeView(cell);
                         addInScreen(cell, container, screen, mTargetCell[0], mTargetCell[1],
                                 info.spanX, info.spanY);
@@ -2392,14 +2417,21 @@ public class Workspace extends SmoothPagedView
         location[1] = vY - y;
     }
 
+    /**
+     * 被DragController回调
+     * @param d
+     */
     public void onDragEnter(DragObject d) {
         mDragEnforcer.onDragEnter();
         mCreateUserFolderOnDrop = false;
         mAddToExistingFolderOnDrop = false;
-
+        Log.i(TAG, "onDragEnter: "+d);
         mDropToLayout = null;
+        //当前显示的page
         CellLayout layout = getCurrentDropLayout();
+        //设置layout并重置其状态
         setCurrentDropLayout(layout);
+        //此处可理解为 invalidate CellLayout
         setCurrentDragOverlappingLayout(layout);
 
         // Because we don't have space in the Phone UI (the CellLayouts run to the edge) we
@@ -2600,7 +2632,7 @@ public class Workspace extends SmoothPagedView
 
 
    void mapPointFromSelfToHotseatLayout(Hotseat hotseat, float[] xy) {
-       hotseat.getLayout().getMatrix().invert(mTempInverseMatrix);
+       hotseat.getLayout().getMatrix().invert(mTempInverseMatrix);//invert逆向
        xy[0] = xy[0] - hotseat.getLeft() - hotseat.getLayout().getLeft();
        xy[1] = xy[1] - hotseat.getTop() - hotseat.getLayout().getTop();
        mTempInverseMatrix.mapPoints(xy);
@@ -2762,21 +2794,22 @@ public class Workspace extends SmoothPagedView
     }
 
     public void onDragOver(DragObject d) {
-        // Skip drag over events while we are dragging over side pages
+
+        //如果当前处于scroll状态或者小屏模式
         if (mInScrollArea || mIsSwitchingState || mState == State.SMALL) return;
 
         Rect r = new Rect();
         CellLayout layout = null;
         ItemInfo item = (ItemInfo) d.dragInfo;
 
-        // Ensure that we have proper spans for the item that we are dropping
+        //spanX,Y表示当前子控件占据的横向Cell个数和纵向Cell个数
         if (item.spanX < 0 || item.spanY < 0) throw new RuntimeException("Improper spans found");
         mDragViewVisualCenter = getDragViewVisualCenter(d.x, d.y, d.xOffset, d.yOffset,
             d.dragView, mDragViewVisualCenter);
 
         final View child = (mDragInfo == null) ? null : mDragInfo.cell;
         // Identify whether we have dragged over a side page
-        if (isSmall()) {
+        if (isSmall()) {//当从all apps长按拖动icon到workspace时调用时会进入
             if (mLauncher.getHotseat() != null && !isExternalDragWidget(d)) {
                 mLauncher.getHotseat().getHitRect(r);
                 if (r.contains(d.x, d.y)) {
@@ -2792,54 +2825,69 @@ public class Workspace extends SmoothPagedView
                 setCurrentDragOverlappingLayout(layout);
 
                 boolean isInSpringLoadedMode = (mState == State.SPRING_LOADED);
+                //如果处于小屏模式，那么
                 if (isInSpringLoadedMode) {
                     if (mLauncher.isHotseatLayout(layout)) {
                         mSpringLoadedDragController.cancel();
                     } else {
+                        //此处其实内部进行了snapToPage及页面切换到mDragTargetLayout页面
                         mSpringLoadedDragController.setAlarm(mDragTargetLayout);
                     }
                 }
             }
         } else {
+
+            //此处当处于WorkSpace内部拖动时
             // Test to see if we are over the hotseat otherwise just use the current page
             if (mLauncher.getHotseat() != null && !isDragWidget(d)) {
                 mLauncher.getHotseat().getHitRect(r);
-                if (r.contains(d.x, d.y)) {
+                if (r.contains(d.x, d.y)) {//首先判断当前的touchX,Y是否属于HotSeat
                     layout = mLauncher.getHotseat().getLayout();
                 }
             }
             if (layout == null) {
+                //如果layout为空这说明touch位置不在HotSeat中
                 layout = getCurrentDropLayout();
             }
+
+            Log.i(TAG, "onDragOver: "+(layout != mDragTargetLayout));
+            //不相等则通知以前并清除状态,此处存疑，判断都是false，待分析
             if (layout != mDragTargetLayout) {
+                //Log.i(TAG, "onDragOver: layout != mDragTargetLayout");
                 setCurrentDropLayout(layout);
                 setCurrentDragOverlappingLayout(layout);
             }
+
         }
 
         // Handle the drag over
         if (mDragTargetLayout != null) {
-            // We want the point to be mapped to the dragTarget.
+            //经过下面if else 计算mDragViewVisualCenter即为在mDragTargetLayout中的TouchX,Y
             if (mLauncher.isHotseatLayout(mDragTargetLayout)) {
+                //mDragViewVisualCenter坐标相对于矫正,内部使用invert逆向+mapPoints
                 mapPointFromSelfToHotseatLayout(mLauncher.getHotseat(), mDragViewVisualCenter);
             } else {
                 mapPointFromSelfToChild(mDragTargetLayout, mDragViewVisualCenter, null);
             }
 
             ItemInfo info = (ItemInfo) d.dragInfo;
-
+            /**
+             * 计算出当前在mDragViewVisualCenter最近的Cell位置
+             */
             mTargetCell = findNearestArea((int) mDragViewVisualCenter[0],
                     (int) mDragViewVisualCenter[1], item.spanX, item.spanY,
                     mDragTargetLayout, mTargetCell);
-
+            //清理addToFolder、createFolder、reOrder
             setCurrentDropOverCell(mTargetCell[0], mTargetCell[1]);
-
+            //此处计算出mDragViewVisualCenter距离最近的Cell也就是mTargetCell的距离
             float targetCellDistance = mDragTargetLayout.getDistanceFromCell(
                     mDragViewVisualCenter[0], mDragViewVisualCenter[1], mTargetCell);
-
+            //获取在mTargetCell位置上的应用图标控件，可能为空
             final View dragOverView = mDragTargetLayout.getChildAt(mTargetCell[0],
                     mTargetCell[1]);
-
+            //mDragViewVisualCenter与mTargetCell的distance是否小于特定值
+            // 且mDragView所代表的控件是application或者shortcut，
+            // 那么就通过Alarm机制，创建FolderRing，进入到DRAG_MODE_CREATE_FOLDER模式。
             manageFolderFeedback(info, mDragTargetLayout, mTargetCell,
                     targetCellDistance, dragOverView);
 
@@ -2849,17 +2897,21 @@ public class Workspace extends SmoothPagedView
                 minSpanX = item.minSpanX;
                 minSpanY = item.minSpanY;
             }
-
+            //判断距离mDragViewVisualCenter最近的mTargetCell是否有应用图标在。
             boolean nearestDropOccupied = mDragTargetLayout.isNearestDropLocationOccupied((int)
                     mDragViewVisualCenter[0], (int) mDragViewVisualCenter[1], item.spanX,
                     item.spanY, child, mTargetCell);
 
+            //如果没有应用图标在
             if (!nearestDropOccupied) {
+                //在onDragOver中不断被调用，下面就是显示轮廓的具体方法
                 mDragTargetLayout.visualizeDropLocation(child, mDragOutline,
                         (int) mDragViewVisualCenter[0], (int) mDragViewVisualCenter[1],
                         mTargetCell[0], mTargetCell[1], item.spanX, item.spanY, false,
                         d.dragView.getDragVisualizeOffset(), d.dragView.getDragRegion());
-            } else if ((mDragMode == DRAG_MODE_NONE || mDragMode == DRAG_MODE_REORDER)
+            }
+            //如果当前有应用图标在，而且之前的manageFolderFeedback没成立，那么就需要让mTargetCell挪位置
+            else if ((mDragMode == DRAG_MODE_NONE || mDragMode == DRAG_MODE_REORDER)
                     && !mReorderAlarm.alarmPending() && (mLastReorderX != mTargetCell[0] ||
                     mLastReorderY != mTargetCell[1])) {
 
@@ -2870,7 +2922,7 @@ public class Workspace extends SmoothPagedView
                 mReorderAlarm.setOnAlarmListener(listener);
                 mReorderAlarm.setAlarm(REORDER_TIMEOUT);
             }
-
+            //此处按道理不会走，因为如果是创建folder或者加入folder的地方，是不可能没有被占用的
             if (mDragMode == DRAG_MODE_CREATE_FOLDER || mDragMode == DRAG_MODE_ADD_TO_FOLDER ||
                     !nearestDropOccupied) {
                 if (mDragTargetLayout != null) {
@@ -2959,11 +3011,13 @@ public class Workspace extends SmoothPagedView
 
         public void onAlarm(Alarm alarm) {
             int[] resultSpan = new int[2];
+            //找出距离DragView的最近的Cell
             mTargetCell = findNearestArea((int) mDragViewVisualCenter[0],
                     (int) mDragViewVisualCenter[1], spanX, spanY, mDragTargetLayout, mTargetCell);
+            //使用mLastReorderX,Y暂存最近Cell的X,Y值
             mLastReorderX = mTargetCell[0];
             mLastReorderY = mTargetCell[1];
-
+            //此处就是做动画，让出位置
             mTargetCell = mDragTargetLayout.createArea((int) mDragViewVisualCenter[0],
                 (int) mDragViewVisualCenter[1], minSpanX, minSpanY, spanX, spanY,
                 child, mTargetCell, resultSpan, CellLayout.MODE_DRAG_OVER);
@@ -2975,6 +3029,7 @@ public class Workspace extends SmoothPagedView
             }
 
             boolean resize = resultSpan[0] != spanX || resultSpan[1] != spanY;
+            //显示轮廓
             mDragTargetLayout.visualizeDropLocation(child, mDragOutline,
                 (int) mDragViewVisualCenter[0], (int) mDragViewVisualCenter[1],
                 mTargetCell[0], mTargetCell[1], resultSpan[0], resultSpan[1], resize,
@@ -3335,6 +3390,7 @@ public class Workspace extends SmoothPagedView
      * screen while a scroll is in progress.
      */
     public CellLayout getCurrentDropLayout() {
+        //
         return (CellLayout) getChildAt(getNextPage());
     }
 
@@ -3478,9 +3534,11 @@ public class Workspace extends SmoothPagedView
 
     @Override
     public void scrollLeft() {
+        //判断是否是小屏模式，如果不是最终会调用snapToPage方法
         if (!isSmall() && !mIsSwitchingState) {
             super.scrollLeft();
         }
+        //如果当前页面有打开的Folder，则需要关闭folder
         Folder openFolder = getOpenFolder();
         if (openFolder != null) {
             openFolder.completeDragExit();
@@ -3502,6 +3560,7 @@ public class Workspace extends SmoothPagedView
     public boolean onEnterScrollArea(int x, int y, int direction) {
         // Ignore the scroll area if we are dragging over the hot seat
         boolean isPortrait = !LauncherApplication.isScreenLandscape(getContext());
+        //如果边界检查发现x值边界位于HotSeat内，那么就不进行页面切换
         if (mLauncher.getHotseat() != null && isPortrait) {
             Rect r = new Rect();
             mLauncher.getHotseat().getHitRect(r);
@@ -3511,17 +3570,19 @@ public class Workspace extends SmoothPagedView
         }
 
         boolean result = false;
+        //非小屏模式
         if (!isSmall() && !mIsSwitchingState) {
             mInScrollArea = true;
-
+            //页面滑动方向判断。
             final int page = getNextPage() +
                        (direction == DragController.SCROLL_LEFT ? -1 : 1);
 
-            // We always want to exit the current layout to ensure parity of enter / exit
+            // 清理状态
             setCurrentDropLayout(null);
-
+            //判断page是否符合workspace数量要求
             if (0 <= page && page < getChildCount()) {
                 CellLayout layout = (CellLayout) getChildAt(page);
+                //对page进行重绘。
                 setCurrentDragOverlappingLayout(layout);
 
                 // Workspace is responsible for drawing the edge glow on adjacent pages,
@@ -3530,6 +3591,8 @@ public class Workspace extends SmoothPagedView
                 result = true;
             }
         }
+
+        //如果小屏模式则返回false
         return result;
     }
 

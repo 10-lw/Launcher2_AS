@@ -213,7 +213,7 @@ public class DragController {
         if (PROFILE_DRAWING_DURING_DRAG) {
             android.os.Debug.startMethodTracing("Launcher");
         }
-
+        Log.i(TAG,"startDrag");
         // Hide soft keyboard, if visible
         if (mInputMethodManager == null) {
             mInputMethodManager = (InputMethodManager)
@@ -354,6 +354,7 @@ public class DragController {
 
     private void endDrag() {
         if (mDragging) {
+            //在endDrag时取消截断TouchEvent
             mDragging = false;
             clearScrollRunnable();
             boolean isDeferred = false;
@@ -488,17 +489,22 @@ public class DragController {
 
         // Drop on someone?
         final int[] coordinates = mCoordinatesTemp;
+        //此处的coordinates要经过修正，得出的相对于workspace的x,y值
         DropTarget dropTarget = findDropTarget(x, y, coordinates);
         mDragObject.x = coordinates[0];
         mDragObject.y = coordinates[1];
-        //通知workspace当前dragView的xy值等信息，方便Workspace在onDragOver回调处理像显示轮廓等信息
+        //通知workspace当前dragView的xy值(此x，y值已经不是相对于DragLayer，而是经过修正，相对于WorkSpace)等信息，
+        // 方便Workspace在onDragOver回调处理像显示轮廓等信息
         checkTouchMove(dropTarget);
 
         // Check if we are hovering over the scroll areas
+        //Math.pow是进行次方运算,Math.sqrt进行开方运算
         mDistanceSinceScroll +=
             Math.sqrt(Math.pow(mLastTouch[0] - x, 2) + Math.pow(mLastTouch[1] - y, 2));
         mLastTouch[0] = x;
         mLastTouch[1] = y;
+        //检查当前的x,y值是否进入WorkSpace的页面scroll边界，边界值为20dp，
+        //也就是说当前dragView进入到距离WorkSpace的左右边界20dp范围内的话就触发scroll页面
         checkScrollState(x, y);
     }
 
@@ -518,13 +524,15 @@ public class DragController {
             if (delegate != null) {
                 dropTarget = delegate;
             }
-
+            //mLastDropTarget在down事件触发时会被置null，所以当每次重新长按时一定会走onDragEnter
             if (mLastDropTarget != dropTarget) {
                 if (mLastDropTarget != null) {
                     mLastDropTarget.onDragExit(mDragObject);
                 }
+                //首次时调用onDragEnter
                 dropTarget.onDragEnter(mDragObject);
             }
+            //以后每次移动时都会调用onDragOver
             dropTarget.onDragOver(mDragObject);
         } else {
             if (mLastDropTarget != null) {
@@ -548,7 +556,7 @@ public class DragController {
                 if (mDragScroller.onEnterScrollArea(x, y, forwardDirection)) {
                     dragLayer.onEnterScrollArea(forwardDirection);
                     mScrollRunnable.setDirection(forwardDirection);
-                    mHandler.postDelayed(mScrollRunnable, delay);
+                    mHandler.postDelayed(mScrollRunnable, delay);//此处会一直检查scroll状态
                 }
             }
         } else if (x > mScrollView.getWidth() - mScrollZone) {
@@ -603,6 +611,7 @@ public class DragController {
             mHandler.removeCallbacks(mScrollRunnable);
 
             if (mDragging) {
+                //是否是快速拖拽删除如果有返回值，则是快速拖拽删除，如果不是则进入drop
                 PointF vec = isFlingingToDelete(mDragObject.dragSource);
                 if (vec != null) {
                     dropOnFlingToDeleteTarget(dragLayerX, dragLayerY, vec);
@@ -693,6 +702,13 @@ public class DragController {
         mDragObject.dragSource.onDropCompleted((View) dropTarget, mDragObject, false, accepted);
     }
 
+    /**
+     *
+     * @param x
+     * @param y
+     * @param dropCoordinates
+     * @return
+     */
     private DropTarget findDropTarget(int x, int y, int[] dropCoordinates) {
         final Rect r = mRectTemp;
 
@@ -705,8 +721,9 @@ public class DragController {
 
             target.getHitRect(r);
 
-            // Convert the hit rect to DragLayer coordinates
+            // dropCoordinates是target经过缩放、平移等之后的相距parent的位置
             target.getLocationInDragLayer(dropCoordinates);
+            //一般情况下此处offset--0
             r.offset(dropCoordinates[0] - target.getLeft(), dropCoordinates[1] - target.getTop());
 
             mDragObject.x = x;
@@ -718,7 +735,8 @@ public class DragController {
                     target.getLocationInDragLayer(dropCoordinates);
                 }
 
-                // Make dropCoordinates relative to the DropTarget
+                //此处解析：原本dropCoordinates数组是WorkSpace相对与DragLayer的位置，
+                // 在进行减法后结果是x，y的位置都变成了相对于workspace了
                 dropCoordinates[0] = x - dropCoordinates[0];
                 dropCoordinates[1] = y - dropCoordinates[1];
 
@@ -804,6 +822,7 @@ public class DragController {
 
         public void run() {
             if (mDragScroller != null) {
+                //根据滑动方向具体执行滑动流程
                 if (mDirection == SCROLL_LEFT) {
                     mDragScroller.scrollLeft();
                 } else {
@@ -811,9 +830,10 @@ public class DragController {
                 }
                 mScrollState = SCROLL_OUTSIDE_ZONE;
                 mDistanceSinceScroll = 0;
+                //重绘Workspace和DragLayer
                 mDragScroller.onExitScrollArea();
                 mLauncher.getDragLayer().onExitScrollArea();
-
+                //如果当前还处于拖拽过程中，那么持续进行滑动检查
                 if (isDragging()) {
                     // Check the scroll again so that we can requeue the scroller if necessary
                     checkScrollState(mLastTouch[0], mLastTouch[1]);

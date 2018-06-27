@@ -264,6 +264,7 @@ public class CellLayout extends ViewGroup {
                         animation.cancel();
                     } else {
                         mDragOutlineAlphas[thisIndex] = (Float) animation.getAnimatedValue();
+                        Log.i(TAG,"mDragOutlineAlphas[thisIndex]:"+animation.getAnimatedValue());
                         CellLayout.this.invalidate(mDragOutlines[thisIndex]);
                     }
                 }
@@ -1141,7 +1142,7 @@ public class CellLayout extends ViewGroup {
             lp.x = oldX;
             lp.y = oldY;
 
-            // Exit early if we're not actually moving the view
+            // 如果相等则说明当前Cell位置上的应用图标控件没有被挪动过
             if (oldX == newX && oldY == newY) {
                 lp.isLockedToGrid = true;
                 return true;
@@ -1150,7 +1151,7 @@ public class CellLayout extends ViewGroup {
             ValueAnimator va = LauncherAnimUtils.ofFloat(child, 0f, 1f);
             va.setDuration(duration);
             mReorderAnimators.put(lp, va);
-
+            //通过改变x,y值达到平移效果
             va.addUpdateListener(new AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
@@ -1215,6 +1216,20 @@ public class CellLayout extends ViewGroup {
         result[1] = Math.max(0, result[1]); // Snap to top
     }
 
+    /**
+     *
+     * @param v child 离DragView最近的cell中的应用图标控件
+     * @param dragOutline D被拖拽控件的bitmap
+     * @param originX DragView的中心点X
+     * @param originY DragView的中心点Y
+     * @param cellX 被拖拽控件的X位置
+     * @param cellY 被拖拽控件的Y位置
+     * @param spanX 被拖拽控件的X宽度
+     * @param spanY 被拖拽控件的Y宽度
+     * @param resize    是否resize
+     * @param dragOffset 拖拽的偏移量
+     * @param dragRegion 拖拽控件的范围
+     */
     void visualizeDropLocation(View v, Bitmap dragOutline, int originX, int originY, int cellX,
             int cellY, int spanX, int spanY, boolean resize, Point dragOffset, Rect dragRegion) {
         final int oldDragCellX = mDragCell[0];
@@ -1235,14 +1250,16 @@ public class CellLayout extends ViewGroup {
             mDragCell[1] = cellY;
             // Find the top left corner of the rect the object will occupy
             final int[] topLeft = mTmpPoint;
+            //把cellX与cellY转换成坐标点
+            //横轴方向上的坐标x：getPaddingLeft() + cellX * (mCellWidth + mWidthGap)
+            //纵轴方向上的坐标y：getPaddingTop() + cellY * (mCellHeight + mHeightGap)
             cellToPoint(cellX, cellY, topLeft);
 
             int left = topLeft[0];
             int top = topLeft[1];
 
             if (v != null && dragOffset == null) {
-                // When drawing the drag outline, it did not account for margin offsets
-                // added by the view's parent.
+                //需要加上控件本身的margin值
                 MarginLayoutParams lp = (MarginLayoutParams) v.getLayoutParams();
                 left += lp.leftMargin;
                 top += lp.topMargin;
@@ -1254,20 +1271,25 @@ public class CellLayout extends ViewGroup {
                 // We center about the x axis
                 left += ((mCellWidth * spanX) + ((spanX - 1) * mWidthGap)
                         - dragOutline.getWidth()) / 2;
+                Log.i(TAG,"visualizeDropLocation->1");
             } else {
                 if (dragOffset != null && dragRegion != null) {
                     // Center the drag region *horizontally* in the cell and apply a drag
                     // outline offset
+                    //此处还需计算Cell内部图片的位置
                     left += dragOffset.x + ((mCellWidth * spanX) + ((spanX - 1) * mWidthGap)
                              - dragRegion.width()) / 2;
                     top += dragOffset.y;
+                    Log.i(TAG,"visualizeDropLocation->2");
                 } else {
                     // Center the drag outline in the cell
                     left += ((mCellWidth * spanX) + ((spanX - 1) * mWidthGap)
                             - dragOutline.getWidth()) / 2;
                     top += ((mCellHeight * spanY) + ((spanY - 1) * mHeightGap)
                             - dragOutline.getHeight()) / 2;
+                    Log.i(TAG,"visualizeDropLocation->3");
                 }
+
             }
             final int oldIndex = mDragOutlineCurrent;
             mDragOutlineAnims[oldIndex].animateOut();
@@ -2082,15 +2104,27 @@ public class CellLayout extends ViewGroup {
         return false;
     }
 
+    /**
+     *
+     * @param cellX 将要挪出位置的Cell的x值
+     * @param cellY 将要挪出位置的Cell的y值
+     * @param spanX 被拖拽控件的宽度
+     * @param spanY 被拖拽控件的高度
+     * @param direction 方向
+     * @param ignoreView 被拖拽的实际控件
+     * @param solution 解决方案
+     * @return 是否安排成功
+     */
     private boolean rearrangementExists(int cellX, int cellY, int spanX, int spanY, int[] direction,
             View ignoreView, ItemConfiguration solution) {
         // Return early if get invalid cell positions
         if (cellX < 0 || cellY < 0) return false;
 
         mIntersectingViews.clear();
+        //将要挪出位置的Cell
         mOccupiedRect.set(cellX, cellY, cellX + spanX, cellY + spanY);
 
-        // Mark the desired location of the view currently being dragged.
+        //如果被拖拽的控件不为空，那么被拖拽控件将要动画的位置放入CellAndSpan中
         if (ignoreView != null) {
             CellAndSpan c = solution.map.get(ignoreView);
             if (c != null) {
@@ -2098,6 +2132,7 @@ public class CellLayout extends ViewGroup {
                 c.y = cellY;
             }
         }
+        //将要挪出位置的Cell
         Rect r0 = new Rect(cellX, cellY, cellX + spanX, cellY + spanY);
         Rect r1 = new Rect();
         for (View child: solution.map.keySet()) {
@@ -2105,10 +2140,12 @@ public class CellLayout extends ViewGroup {
             CellAndSpan c = solution.map.get(child);
             LayoutParams lp = (LayoutParams) child.getLayoutParams();
             r1.set(c.x, c.y, c.x + c.spanX, c.y + c.spanY);
+            //如果将要挪出的Cell区域与当前child交叉，那么表示当前child需要被挪开
             if (Rect.intersects(r0, r1)) {
-                if (!lp.canReorder) {
+                if (!lp.canReorder) {//如果不能选到的控件不能被排序
                     return false;
                 }
+                //此处用来装载需要被挪开的控件
                 mIntersectingViews.add(child);
             }
         }
@@ -2161,16 +2198,28 @@ public class CellLayout extends ViewGroup {
         }
     }
 
+    /**
+     *
+     * @param pixelX
+     * @param pixelY
+     * @param minSpanX
+     * @param minSpanY
+     * @param spanX
+     * @param spanY
+     * @param direction
+     * @param dragView
+     * @param decX
+     * @param solution
+     * @return
+     */
     ItemConfiguration simpleSwap(int pixelX, int pixelY, int minSpanX, int minSpanY, int spanX,
             int spanY, int[] direction, View dragView, boolean decX, ItemConfiguration solution) {
-        // Copy the current state into the solution. This solution will be manipulated as necessary.
+        //此处把所有的Cell的坐标值与span值都用CellAndSpan装到solution.map中
         copyCurrentStateToSolution(solution, false);
-        // Copy the current occupied array into the temporary occupied array. This array will be
-        // manipulated as necessary to find a solution.
+        //并且把那些Cell被占用也copy一份到mTmpOccupied中
         copyOccupiedArray(mTmpOccupied);
 
-        // We find the nearest cell into which we would place the dragged item, assuming there's
-        // nothing in its way.
+        //找到里pixelX，pixelY最近的Cell坐标
         int result[] = new int[2];
         result = findNearestArea(pixelX, pixelY, spanX, spanY, result);
 
@@ -2193,8 +2242,8 @@ public class CellLayout extends ViewGroup {
             solution.isSolution = false;
         } else {
             solution.isSolution = true;
-            solution.dragViewX = result[0];
-            solution.dragViewY = result[1];
+            solution.dragViewX = result[0];//把最近的cellX放入
+            solution.dragViewY = result[1];//把最近的cellY放入
             solution.dragViewSpanX = spanX;
             solution.dragViewSpanY = spanY;
         }
@@ -2243,8 +2292,9 @@ public class CellLayout extends ViewGroup {
 
     private void animateItemsToSolution(ItemConfiguration solution, View dragView, boolean
             commitDragView) {
-
+        //使用的是mTmpOccupied
         boolean[][] occupied = DESTRUCTIVE_REORDER ? mOccupied : mTmpOccupied;
+        //occupied重置
         for (int i = 0; i < mCountX; i++) {
             for (int j = 0; j < mCountY; j++) {
                 occupied[i][j] = false;
@@ -2257,8 +2307,11 @@ public class CellLayout extends ViewGroup {
             if (child == dragView) continue;
             CellAndSpan c = solution.map.get(child);
             if (c != null) {
+                //内部判断mCellX,mCellY与临时坐标mTmpCellX，mtmpCellY是否相等，
+                // 如果不相等，就开始执行动画
                 animateChildToPosition(child, c.x, c.y, REORDER_ANIMATION_DURATION, 0,
                         DESTRUCTIVE_REORDER, false);
+                //把符合条件的cell的occupied置为true
                 markCellsForView(c.x, c.y, c.spanX, c.spanY, occupied, true);
             }
         }
@@ -2277,6 +2330,7 @@ public class CellLayout extends ViewGroup {
             CellAndSpan c = solution.map.get(child);
             LayoutParams lp = (LayoutParams) child.getLayoutParams();
             if (c != null) {
+                //做shake动画
                 ReorderHintAnimation rha = new ReorderHintAnimation(child, lp.cellX, lp.cellY,
                         c.x, c.y, c.spanX, c.spanY);
                 rha.animate();
@@ -2340,12 +2394,16 @@ public class CellLayout extends ViewGroup {
                     return;
                 }
             }
+            //此处表示从构造参数传入的 lp.cellX, lp.cellY,c.x, c.y如果相同的话finalDeltaX与finalDeltaY
+            //就会为0，也即意味着此child没有被挪动，所以就不需要做抖动动画
             if (finalDeltaX == 0 && finalDeltaY == 0) {
                 return;
             }
+            //shake动画
             ValueAnimator va = LauncherAnimUtils.ofFloat(child, 0f, 1f);
             a = va;
             va.setRepeatMode(ValueAnimator.REVERSE);
+            //抖动会一直反复持续
             va.setRepeatCount(ValueAnimator.INFINITE);
             va.setDuration(DURATION);
             va.setStartDelay((int) (Math.random() * 60));
@@ -2590,18 +2648,30 @@ public class CellLayout extends ViewGroup {
         return swapSolution.isSolution;
     }
 
+    /**
+     *
+     * @param pixelX DragView的位置X
+     * @param pixelY DragView的位置Y
+     * @param minSpanX DragView最少需占据的SPanX
+     * @param minSpanY DragView最少需占据的SPanY
+     * @param spanX DragView占据的spanX，即横向cell数
+     * @param spanY DragView占据的spanY，即纵向cell数
+     * @param dragView 此dragView并非为添加到DragLayer的DragView，而是指被拖拽的应用图标控件即被拖拽Cell
+     * @param result 即mTargetCell，离DragView最近的Cell
+     * @param resultSpan 用于存放值
+     * @param mode 模式
+     * @return
+     */
     int[] createArea(int pixelX, int pixelY, int minSpanX, int minSpanY, int spanX, int spanY,
             View dragView, int[] result, int resultSpan[], int mode) {
-        // First we determine if things have moved enough to cause a different layout
+        //找出最近区域
         result = findNearestArea(pixelX, pixelY, spanX, spanY, result);
 
         if (resultSpan == null) {
             resultSpan = new int[2];
         }
 
-        // When we are checking drop validity or actually dropping, we don't recompute the
-        // direction vector, since we want the solution to match the preview, and it's possible
-        // that the exact position of the item has changed to result in a new reordering outcome.
+        //方向矢量
         if ((mode == MODE_ON_DROP || mode == MODE_ON_DROP_EXTERNAL || mode == MODE_ACCEPT_DROP)
                && mPreviousReorderDirection[0] != INVALID_DIRECTION) {
             mDirectionVector[0] = mPreviousReorderDirection[0];
@@ -2611,7 +2681,7 @@ public class CellLayout extends ViewGroup {
                 mPreviousReorderDirection[0] = INVALID_DIRECTION;
                 mPreviousReorderDirection[1] = INVALID_DIRECTION;
             }
-        } else {
+        } else {//MODE_DRAG_OVER
             getDirectionVectorForDrop(pixelX, pixelY, spanX, spanY, dragView, mDirectionVector);
             mPreviousReorderDirection[0] = mDirectionVector[0];
             mPreviousReorderDirection[1] = mDirectionVector[1];
@@ -2627,12 +2697,15 @@ public class CellLayout extends ViewGroup {
         ItemConfiguration finalSolution = null;
         if (swapSolution.isSolution && swapSolution.area() >= noShuffleSolution.area()) {
             finalSolution = swapSolution;
+            Log.i(TAG,"swapSolution："+mDirectionVector);
         } else if (noShuffleSolution.isSolution) {
             finalSolution = noShuffleSolution;
+            Log.i(TAG,"noShuffleSolution"+mDirectionVector);
         }
 
         boolean foundSolution = true;
         if (!DESTRUCTIVE_REORDER) {
+            //是否使用临时坐标mTmpCellX，mTmpCellY等，此处声明使用临时坐标
             setUseTempCoords(true);
         }
 
@@ -2647,17 +2720,21 @@ public class CellLayout extends ViewGroup {
             // exists
             if (mode == MODE_DRAG_OVER || mode == MODE_ON_DROP || mode == MODE_ON_DROP_EXTERNAL) {
                 if (!DESTRUCTIVE_REORDER) {
+                    //
                     copySolutionToTempState(finalSolution, dragView);
                 }
                 setItemPlacementDirty(true);
+                //开始平移动画
                 animateItemsToSolution(finalSolution, dragView, mode == MODE_ON_DROP);
 
                 if (!DESTRUCTIVE_REORDER &&
                         (mode == MODE_ON_DROP || mode == MODE_ON_DROP_EXTERNAL)) {
+                    //当up事件产生时走此处
                     commitTempPlacement();
                     completeAndClearReorderHintAnimations();
                     setItemPlacementDirty(false);
                 } else {
+                    //开始shake动画过程
                     beginOrAdjustHintAnimations(finalSolution, dragView,
                             REORDER_ANIMATION_DURATION);
                 }
@@ -2668,6 +2745,7 @@ public class CellLayout extends ViewGroup {
         }
 
         if ((mode == MODE_ON_DROP || !foundSolution) && !DESTRUCTIVE_REORDER) {
+            //是否使用临时坐标mTmpCellX，mTmpCellY等，此处声明不使用临时坐标
             setUseTempCoords(false);
         }
 

@@ -474,10 +474,7 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
         // Disable dragging by pulling an app down for now.
     }
 
-    private void beginDraggingApplication(View v) {
-        mLauncher.getWorkspace().onDragStartedWithItem(v);
-        mLauncher.getWorkspace().beginDragShared(v, this);
-    }
+
 
     Bundle getDefaultOptionsForWidget(Launcher launcher, PendingAddWidgetInfo info) {
         Bundle options = null;
@@ -605,7 +602,10 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
             cleanupWidgetPreloading(false);
         }
     }
-
+    private void beginDraggingApplication(View v) {
+        mLauncher.getWorkspace().onDragStartedWithItem(v);
+        mLauncher.getWorkspace().beginDragShared(v, this);
+    }
     private boolean beginDraggingWidget(View v) {
         mDraggingWidget = true;
         // Get the widget preview as the drag representation
@@ -624,21 +624,24 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
         Bitmap outline;
         float scale = 1f;
         Point previewPadding = null;
-
+        Log.i(TAG,"createItemInfo:"+createItemInfo.getClass().getSimpleName());
         if (createItemInfo instanceof PendingAddWidgetInfo) {
             // This can happen in some weird cases involving multi-touch. We can't start dragging
             // the widget if this is null, so we break out.
             if (mCreateWidgetInfo == null) {
                 return false;
             }
-
+            //此处mCreateWidgetInfo从onShortPress方法传过来，
+            // onShortPress方法在PagedViewWidget中被调用
             PendingAddWidgetInfo createWidgetInfo = mCreateWidgetInfo;
             createItemInfo = createWidgetInfo;
             int spanX = createItemInfo.spanX;
             int spanY = createItemInfo.spanY;
+            //此处计算出来的size经过缩放，因为SPRING_LOADED模式一般都比正常NORMAL模式要小。
+            // 所以此方法经过比例缩放。size->width+height
             int[] size = mLauncher.getWorkspace().estimateItemSize(spanX, spanY,
                     createWidgetInfo, true);
-
+            //Widget图片
             FastBitmapDrawable previewDrawable = (FastBitmapDrawable) image.getDrawable();
             float minScale = 1.25f;
             int maxWidth, maxHeight;
@@ -677,6 +680,7 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
                     icon.getIntrinsicWidth(), icon.getIntrinsicHeight());
             mCanvas.restore();
             mCanvas.setBitmap(null);
+            //如果是shortcutInfo则只占一个Cell
             createItemInfo.spanX = createItemInfo.spanY = 1;
         }
 
@@ -684,13 +688,15 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
         boolean clipAlpha = !(createItemInfo instanceof PendingAddWidgetInfo &&
                 (((PendingAddWidgetInfo) createItemInfo).info.previewImage == 0));
 
-        // Save the preview for the outline generation, then dim the preview
+        //轮廓图
         outline = Bitmap.createScaledBitmap(preview, preview.getWidth(), preview.getHeight(),
                 false);
 
-        // Start the drag
+        //锁定屏幕方向
         mLauncher.lockScreenOrientation();
+        //在WorkSpace中绘制轮廓。
         mLauncher.getWorkspace().onDragStartedWithItem(createItemInfo, outline, clipAlpha);
+        //开始拖拽
         mDragController.startDrag(image, preview, this, createItemInfo,
                 DragController.DRAG_ACTION_COPY, previewPadding, scale);
         outline.recycle();
@@ -717,13 +723,13 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
             public void run() {
                 // We don't enter spring-loaded mode if the drag has been cancelled
                 if (mLauncher.getDragController().isDragging()) {
-                    // Dismiss the cling
+                    //如果当前是第一次进入All Apps页面，那么Cling提示就会存在，所以在长按时应该隐藏Cling提示
                     mLauncher.dismissAllAppsCling(null);
 
                     // Reset the alpha on the dragged icon before we drag
                     resetDrawableState();
 
-                    // Go into spring loaded mode (must happen before we startDrag())
+                    //通知WorkSpace进入SPRING_LOADED小屏模式
                     mLauncher.enterSpringLoadedDragMode();
                 }
             }

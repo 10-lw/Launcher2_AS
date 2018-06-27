@@ -16,6 +16,7 @@
 
 package com.android.launcher2;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.provider.BaseColumns;
 
@@ -96,27 +97,23 @@ class LauncherSettings {
      */
     static final class Favorites implements BaseLauncherColumns {
         /**
-         * The content:// style URL for this table
+         * favorites表的uri，带通知内容观察者功能
          */
         static final Uri CONTENT_URI = Uri.parse("content://" +
                 LauncherProvider.AUTHORITY + "/" + LauncherProvider.TABLE_FAVORITES +
                 "?" + LauncherProvider.PARAMETER_NOTIFY + "=true");
-
         /**
-         * The content:// style URL for this table. When this Uri is used, no notification is
-         * sent if the content changes.
+         * favorites表的uri，不带通知内容观察者的功能
          */
         static final Uri CONTENT_URI_NO_NOTIFICATION = Uri.parse("content://" +
                 LauncherProvider.AUTHORITY + "/" + LauncherProvider.TABLE_FAVORITES +
                 "?" + LauncherProvider.PARAMETER_NOTIFY + "=false");
 
         /**
-         * The content:// style URL for a given row, identified by its id.
-         *
-         * @param id The row id.
-         * @param notify True to send a notification is the content changes.
-         *
-         * @return The unique content URL for the specified row.
+         * 为CRUD某行数据而准备的uri可通过此方法获取
+         * @param id 具体的行id，即表中的_id值
+         * @param notify 是否带通知内容观察者功能
+         * @return 返回某一行的uri
          */
         static Uri getContentUri(long id, boolean notify) {
             return Uri.parse("content://" + LauncherProvider.AUTHORITY +
